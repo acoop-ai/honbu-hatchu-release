@@ -1,0 +1,2202 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <title>本部発注切り替えアプリ【惣菜テスト版】</title>
+  <!-- Google Fonts (Outfit & Noto Sans JP) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Google Identity Services (GitHub Pages 版 4ドメイン認証) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
+  <style>
+    /* =========================================================================
+     * Premium High-Contrast Light Theme Design System (v1.50)
+     * ========================================================================= */
+    :root {
+      --font-primary: 'Outfit', 'Noto Sans JP', sans-serif;
+      
+      /* Color Palette (High-Contrast Light Theme) */
+      --bg-main: hsl(220, 20%, 95%);
+      --card-bg: #ffffff;
+      --card-border: #0f172a;
+      --card-border-thick: 2px solid #0f172a;
+      
+      --accent-blue: hsl(220, 90%, 35%);
+      --accent-blue-hover: hsl(220, 90%, 45%);
+      --accent-purple: hsl(270, 80%, 40%);
+      --accent-emerald: hsl(160, 80%, 30%);
+      --accent-amber: hsl(35, 90%, 40%);
+      --accent-rose: hsl(350, 80%, 45%);
+      
+      --text-main: #0f172a;
+      --text-muted: #475569;
+      --text-dark: #0f172a;
+      
+      --shadow-solid: 4px 4px 0px 0px rgba(15, 23, 42, 1);
+      --transition-base: all 0.2s ease-in-out;
+    }
+
+    * {
+      box-spacing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-primary);
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* Scrollbar Styling */
+    ::-webkit-scrollbar {
+      width: 12px;
+      height: 12px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #e2e8f0;
+      border: 1px solid #cbd5e1;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #475569;
+      border-radius: 4px;
+      border: 2px solid #e2e8f0;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #0f172a;
+    }
+
+    /* Layout Container */
+    .app-container {
+      width: 100%;
+      max-width: 100vw;
+      margin: 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      border: var(--card-border-thick);
+      padding: 8px 16px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-solid);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--accent-blue);
+      letter-spacing: -0.5px;
+    }
+
+    .system-badge {
+      font-size: 10px;
+      font-weight: 700;
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1.5px solid var(--card-border);
+      color: var(--text-main);
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      font-family: var(--font-primary);
+      font-size: 13px;
+      font-weight: 700;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: var(--card-border-thick);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition-base);
+      background: #ffffff;
+      color: var(--text-main);
+      box-shadow: 2px 2px 0px 0px rgba(15, 23, 42, 1);
+    }
+
+    .btn:active {
+      transform: translate(1px, 1px);
+      box-shadow: 1px 1px 0px 0px rgba(15, 23, 42, 1);
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: #ffffff;
+    }
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-secondary {
+      background: #f8fafc;
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: #e2e8f0;
+    }
+
+    .btn-danger {
+      background: #ef4444;
+      color: #ffffff;
+    }
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .btn-refresh {
+      padding: 6px 10px;
+      background: #f1f5f9;
+      font-size: 15px;
+    }
+
+    /* Panels & Views */
+    .panel {
+      display: none;
+      animation: fadeIn 0.15s ease-out forwards;
+    }
+    .panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(3px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Screen 1: Login View */
+    .login-box {
+      max-width: 460px;
+      margin: 40px auto;
+      background: var(--card-bg);
+      border: var(--card-border-thick);
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: var(--shadow-solid);
+      text-align: center;
+    }
+
+    .login-logo {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--accent-blue);
+      margin-bottom: 6px;
+    }
+
+    .login-subtitle {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: var(--text-dark);
+    }
+
+    .select-custom, .input-custom {
+      width: 100%;
+      background: #ffffff;
+      border: var(--card-border-thick);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-family: var(--font-primary);
+      font-weight: 500;
+      font-size: 13px;
+      outline: none;
+      transition: var(--transition-base);
+    }
+
+    .select-custom:focus, .input-custom:focus {
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+      border-color: #2563eb;
+    }
+
+    /* Screen 2: Dashboard View */
+    .main-workspace {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      min-width: 0;
+    }
+
+    /* Filters Bar */
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      background: var(--card-bg);
+      border: var(--card-border-thick);
+      border-radius: 8px;
+      padding: 10px 15px;
+      align-items: flex-end;
+      box-shadow: var(--shadow-solid);
+    }
+
+    /* 各フィルタは画面幅いっぱいに伸ばさず、適度な固定幅でヘッダに整列させる */
+    .filter-group {
+      flex: 0 0 auto;
+    }
+
+    .filter-group .select-custom,
+    .filter-group .input-custom {
+      width: 100%;
+    }
+
+    .filter-group label {
+      display: block;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-dark);
+      margin-bottom: 4px;
+      white-space: nowrap;
+    }
+
+    .filter-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-left: auto; /* ボタン群を右端へ寄せる */
+    }
+
+    /* Grid Container */
+    .grid-container {
+      background: var(--card-bg);
+      border: var(--card-border-thick);
+      border-radius: 8px;
+      padding: 0;
+      box-shadow: var(--shadow-solid);
+      overflow: auto;
+      width: 100%;
+      max-height: calc(100vh - 160px);
+    }
+
+    .grid-table {
+      /* 内容ぶんの幅だけにする。min-width:100% を付けると列数が少ないとき
+         余った横幅が各列に配分されて1列が異常に太くなるため付けない。 */
+      width: max-content;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 13px;
+    }
+
+    /* Table Headers */
+    .grid-table th {
+      background: #1e3a8a;
+      color: #ffffff;
+      border-bottom: 2px solid var(--card-border);
+      border-right: 1px solid var(--card-border);
+      padding: 8px 10px;
+      font-weight: 700;
+      text-align: center;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.5);
+      font-size: 13px;
+    }
+
+    .grid-table th:first-child {
+      left: 0;
+      z-index: 20;
+      border-right: 2px solid var(--card-border);
+    }
+
+    .product-header-content {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 90px;
+      max-width: 150px;
+    }
+
+    .product-title {
+      font-weight: 800;
+      white-space: normal;
+      word-break: break-all;
+      font-size: 13px;
+      line-height: 1.25;
+      text-align: center;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-height: 48px;
+    }
+
+    .product-specs {
+      font-size: 10px;
+      font-weight: 700;
+      color: #cbd5e1;
+    }
+
+    .product-cost {
+      font-size: 11px;
+      color: #34d399;
+      font-weight: 700;
+    }
+
+    .pin-btn {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      color: var(--text-dark);
+      cursor: pointer;
+      font-size: 11px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      transition: var(--transition-base);
+      margin-top: 2px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    .pin-btn:hover {
+      background: #f1f5f9;
+    }
+    
+    /* Pinned th contrast fix */
+    .pinned {
+      background: #eff6ff !important;
+      color: #1e3a8a !important;
+    }
+    .pinned span {
+      color: #1e3a8a !important;
+    }
+    .pinned .product-title {
+      color: #1e3a8a !important;
+      font-weight: 900;
+    }
+    .pinned .product-specs {
+      color: #475569 !important;
+    }
+    .pinned .product-cost {
+      color: #2563eb !important;
+    }
+    .pinned .pin-btn {
+      border-color: #1e3a8a !important;
+      color: #1e3a8a !important;
+      background-color: #ffffff !important;
+    }
+
+    /* Table Rows & Cells */
+    .grid-table td {
+      border-bottom: 1px solid var(--card-border);
+      border-right: 1px solid var(--card-border);
+      padding: 10px 14px;
+      text-align: center;
+      font-weight: 700;
+      color: var(--text-dark);
+      background-color: #ffffff;
+      font-size: 14px;
+    }
+
+    .grid-table tr:hover td {
+      background-color: #f8fafc;
+    }
+
+    /* Sticky Date Column */
+    .grid-table td:first-child {
+      position: sticky;
+      left: 0;
+      background: #cbd5e1;
+      font-weight: 800;
+      border-right: 2px solid var(--card-border);
+      z-index: 5;
+      text-align: center;
+      white-space: nowrap;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+
+    /* Daily Cost Total Column */
+    .grid-table td:last-child, .grid-table th:last-child {
+      border-left: 2px solid var(--card-border);
+      font-weight: 800;
+      background-color: #e2e8f0;
+      min-width: 90px;
+      font-size: 13px;
+    }
+
+    /* 「日別合計(原価額)」ヘッダは他の見出しと同じ濃紺＋白文字にする
+       （薄灰背景に白文字が乗って読めなくなる不具合の修正） */
+    .grid-table th:last-child {
+      background-color: #1e3a8a;
+      color: #ffffff;
+    }
+
+    /* Qty cells styling */
+    .cell-qty {
+      font-weight: 800;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .cell-qty.has-value {
+      background: #dbeafe;
+      color: #1e40af;
+      border: 1px solid #1e40af;
+    }
+
+    .cell-qty.has-value:hover {
+      background: #bfdbfe;
+    }
+
+    /* Alert Badge inside Grid */
+    .cell-alert-badge {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #d97706;
+      border: 1px solid #000000;
+    }
+
+    /* Memo Indicator inside Grid */
+    .cell-memo-indicator {
+      position: absolute;
+      bottom: 2px;
+      right: 2px;
+      font-size: 9px;
+    }
+
+    /* Totals Row */
+    .grid-total-row td {
+      background: #cbd5e1;
+      font-weight: 800;
+      border-top: 2px solid var(--card-border);
+      padding: 10px 14px;
+      font-size: 13px;
+    }
+    .grid-total-row td:first-child {
+      z-index: 6;
+      background: #94a3b8;
+    }
+    .grid-total-row td:last-child {
+      background: #94a3b8;
+    }
+
+    /* Tooltip */
+    .cell-qty .tooltip {
+      visibility: hidden;
+      width: 240px;
+      background: #0f172a;
+      border: 2px solid #ffffff;
+      color: #ffffff;
+      text-align: left;
+      border-radius: 6px;
+      padding: 10px;
+      position: absolute;
+      z-index: 100;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -120px;
+      opacity: 0;
+      transition: opacity 0.15s;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+      font-size: 11px;
+      pointer-events: none;
+      line-height: 1.4;
+    }
+
+    .cell-qty:hover .tooltip {
+      visibility: visible;
+      opacity: 1;
+    }
+
+    .cell-qty .tooltip hr {
+      border: 0;
+      border-top: 1px solid rgba(255,255,255,0.2);
+      margin: 6px 0;
+    }
+
+    /* Widget lists in modals */
+    .widget-modal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .widget-modal-item {
+      border: var(--card-border-thick);
+      border-radius: 6px;
+      padding: 12px;
+      background: #f8fafc;
+      font-size: 13px;
+    }
+
+    /* Screen 3: Admin Import View */
+    .admin-box {
+      max-width: 650px;
+      margin: 30px auto;
+      background: var(--card-bg);
+      border: var(--card-border-thick);
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: var(--shadow-solid);
+    }
+
+    .admin-title {
+      font-size: 20px;
+      font-weight: 800;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--accent-blue);
+    }
+
+    .description-box {
+      background: #f8fafc;
+      border: 2px solid var(--card-border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-dark);
+      line-height: 1.5;
+    }
+
+    .file-select-layout {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* Loading Overlay */
+    .loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.85);
+      backdrop-filter: blur(2px);
+      z-index: 9999;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 15px;
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #e2e8f0;
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    /* Modal Styling */
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(2px);
+      z-index: 1000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: var(--card-bg);
+      border: var(--card-border-thick);
+      border-radius: 10px;
+      width: 440px;
+      padding: 25px;
+      box-shadow: var(--shadow-solid);
+      animation: zoomIn 0.15s ease-out;
+    }
+
+    @keyframes zoomIn {
+      from { transform: scale(0.96); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      font-size: 16px;
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: var(--text-dark);
+      border-bottom: 2px solid var(--card-border);
+      padding-bottom: 6px;
+    }
+
+    .modal-body {
+      margin-bottom: 15px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Alert / Success Toast */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      border-radius: 6px;
+      border: var(--card-border-thick);
+      color: #ffffff;
+      font-weight: 700;
+      z-index: 10000;
+      box-shadow: var(--shadow-solid);
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.2s ease;
+      font-size: 13px;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    .toast-success {
+      background: var(--accent-emerald);
+    }
+    
+    .toast-error {
+      background: var(--accent-rose);
+    }
+    
+    .toast-warning {
+      background: var(--accent-amber);
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loadingText">読み込み中...</div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header -->
+    <header>
+      <div class="brand">
+        <div class="brand-logo">本部発注切り替えアプリ</div>
+        <div class="system-badge" style="background:#fef3c7;border-color:#b45309;color:#92400e;">惣菜テスト版</div>
+        <div class="system-badge" id="versionBadge">GitHub版 v2.00</div>
+      </div>
+      <div class="nav-actions">
+        <span id="userEmailDisplay" title="接続中のアカウント" style="font-size: 11px; color: #475569; margin-right: 10px; display: none;"></span>
+        <span id="currentStoreDisplay" style="font-size: 14px; font-weight: 900; display: none; color: #1e3a8a; background: #dbeafe; padding: 4px 10px; border-radius: 6px; border: 1.5px solid #1e3a8a; margin-right: 12px;"></span>
+        <button class="btn btn-secondary" onclick="openGuide()">📖 ご利用ガイド</button>
+        <button class="btn btn-secondary" id="adminViewBtn" onclick="openAdminPanel()">⚙ 管理者同期</button>
+        <button class="btn btn-danger" id="logoutBtn" style="display: none;" onclick="logout()">ログアウト</button>
+      </div>
+    </header>
+
+    <!-- Main Screens -->
+    
+    <!-- Screen 0: Google 4ドメイン認証 -->
+    <div class="panel active" id="authPanel">
+      <div class="login-box">
+        <div class="login-logo">本部発注切り替えアプリ</div>
+        <div style="display:inline-block; font-size:11px; font-weight:700; background:#fef3c7; color:#92400e; border:1.5px solid #b45309; border-radius:6px; padding:2px 8px; margin-bottom:10px;">惣菜テスト版</div>
+        <div class="login-subtitle">ご利用には会社アカウントでのログインが必要です。<br>（jaz-acoop.co.jp / jaz-acoop1.jp / jaz-acoop2.jp / jaz-acoop3.jp）</div>
+
+        <button class="btn btn-primary" id="googleLoginBtn" style="width: 100%; justify-content: center; padding: 12px;" onclick="startGoogleLogin()">
+          Googleでログイン
+        </button>
+
+        <p id="authError" style="display:none; margin-top:14px; font-size:12px; font-weight:700; color:#b91c1c; background:#fef2f2; border:1.5px solid #dc2626; border-radius:6px; padding:8px 10px; text-align:left;"></p>
+        <p style="font-size:11px; color:#94a3b8; margin-top:14px;">個人Gmail等では利用できません。</p>
+      </div>
+    </div>
+
+    <!-- Screen 1: Login View (店舗選択) -->
+    <div class="panel" id="loginPanel">
+      <div class="login-box">
+        <div class="login-logo">本部発注切り替えアプリ</div>
+        <div style="display:inline-block; font-size:11px; font-weight:700; background:#fef3c7; color:#92400e; border:1.5px solid #b45309; border-radius:6px; padding:2px 8px; margin-bottom:10px;">惣菜テスト版</div>
+        <div class="login-subtitle">仕入先ごとの本部発注書を、店舗別・日付別のわかりやすい一覧に切り替えて確認できます。ご自身の店舗を選んで接続してください。</div>
+
+        <div class="form-group">
+          <label for="storeSelect">確認する店舗を選択</label>
+          <select class="select-custom" id="storeSelect">
+            <option value="">店舗を読み込んでいます...</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; justify-content: center; padding: 12px;" onclick="login()">
+          選択した店舗で接続
+        </button>
+
+        <button class="btn btn-secondary" style="width: 100%; justify-content: center; padding: 10px; margin-top: 10px;" onclick="openGuide()">
+          📖 ご利用ガイド
+        </button>
+
+        <!-- Debug Section (v1.50 Diagnostic Panel) -->
+        <div id="debugSection" style="margin-top: 30px; border: 1px dashed #ef4444; padding: 15px; background: #fff5f5; border-radius: 8px; text-align: left; font-size: 11px; font-family: monospace; display: none;">
+          <h4 style="color: #b91c1c; margin-bottom: 8px; font-size: 12px; font-weight: bold;">🔍 システム診断情報（サーバー実測値）</h4>
+          <div id="debugContent" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Screen 2: Dashboard View -->
+    <div class="panel" id="dashboardPanel">
+      <div class="main-workspace">
+        
+        <!-- Filters Bar -->
+        <div class="filters-bar">
+          <div class="filter-group" style="width: 210px;">
+            <label for="headerStoreSelect">店舗（切替）</label>
+            <select class="select-custom" id="headerStoreSelect" onchange="switchStore()">
+              <option value="">店舗を選択...</option>
+            </select>
+          </div>
+          <div class="filter-group" style="width: 120px;">
+            <label for="deptSelect">部門</label>
+            <select class="select-custom" id="deptSelect" onchange="loadDashboardData()">
+              <option value="惣菜">惣菜部門</option>
+            </select>
+          </div>
+          <div class="filter-group" style="width: 150px;">
+            <label for="monthFilter">対象月</label>
+            <select class="select-custom" id="monthFilter" onchange="onMonthChange()">
+              <option value="">読み込み中...</option>
+            </select>
+          </div>
+          <div class="filter-group" style="width: 170px;">
+            <label for="supplierFilter">取引先</label>
+            <select class="select-custom" id="supplierFilter" onchange="applyFilters()">
+              <option value="">すべて</option>
+            </select>
+          </div>
+          <div class="filter-group" style="width: 190px;">
+            <label for="searchFilter">商品検索</label>
+            <input type="text" class="input-custom" id="searchFilter" placeholder="品名・コード" oninput="applyFilters()">
+          </div>
+
+          <div class="filter-actions">
+            <button class="btn btn-secondary" id="alertsBtn" onclick="openAlertsModal()">🔔 アラート</button>
+            <button class="btn btn-secondary" id="favoritesBtn" onclick="openFavoritesModal()">🌟 よく見る商品</button>
+            <button class="btn btn-primary" onclick="exportToSpreadsheet()">📊 スプシ書き出し</button>
+          </div>
+        </div>
+        
+        <!-- Grid Table Container -->
+        <div class="grid-container">
+          <table class="grid-table" id="gridTable">
+            <!-- 読み込み時に表示 -->
+          </table>
+        </div>
+        
+      </div>
+    </div>
+
+    <!-- Screen 3: Admin Import View -->
+    <div class="panel" id="adminPanel">
+      <div class="admin-box">
+        <div class="admin-title">
+          <span>⚙</span> 管理者Googleドライブ同期
+        </div>
+        
+        <div class="description-box">
+          <p><strong>使い方:</strong></p>
+          <p>1. 配布された本部発注書ExcelファイルをGoogleドライブにアップロードし、<strong>Googleスプレッドシート</strong>形式に変換して保存します。</p>
+          <p>2. 下記の「同期する発注書ファイル」一覧から、該当するスプレッドシートを選択します（直近で更新したものが上部に並びます）。</p>
+          <p>3. 「発注データを同期」ボタンをクリックすると、自動で解析され、店舗側の時系列グリッドに即座に反映されます。</p>
+          <p>※<strong>同一ファイルを再同期（上書き）しても、データが重複することはありません。</strong>月が異なる過去ファイルをインポートすると、過去の月別履歴として追加格納され、店舗主任が月を選択して確認できるようになります。</p>
+        </div>
+        
+        <div class="form-group">
+          <label for="importDept">取り込む部門</label>
+          <select class="select-custom" id="importDept">
+            <option value="惣菜">惣菜部門</option>
+            <option value="精肉">精肉部門</option>
+            <option value="鮮魚">鮮魚部門</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="driveFileSelect">同期する発注書ファイル (Googleドライブ内)</label>
+          <div class="file-select-layout">
+            <select class="select-custom" id="driveFileSelect" style="flex: 1;">
+              <option value="">ファイルを検索中...</option>
+            </select>
+            <button class="btn btn-secondary btn-refresh" onclick="scanDriveFiles()" title="Googleドライブを再検索">🔄</button>
+          </div>
+        </div>
+        
+        <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 25px; flex-wrap: wrap;">
+          <button class="btn btn-danger" onclick="runClearDatabase()" style="margin-right: auto;">⚠️ DB全初期化</button>
+          <button class="btn btn-secondary" onclick="runInspectStructure()" title="選択した元ファイルの見出し構造を生ダンプします（決め打ち修正の前に原本を確認するための診断）">🔬 見出し構造を診断</button>
+          <button class="btn btn-secondary" onclick="showDashboard()">ダッシュボードに戻る</button>
+          <button class="btn btn-primary" onclick="runImport()">発注データを同期</button>
+        </div>
+
+        <pre id="inspectOutput" style="display:none; margin-top:15px; padding:12px; background:#0f172a; color:#e2e8f0; border:2px solid #0f172a; border-radius:6px; font-size:11px; line-height:1.4; max-height:360px; overflow:auto; white-space:pre-wrap; word-break:break-all;"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Memo Edit -->
+  <div class="modal" id="memoModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        納品メモの編集
+      </div>
+      <div class="modal-body">
+        <p id="memoModalProductInfo" style="font-size: 13px; color: var(--text-muted); margin-bottom: 10px; font-weight: 700;"></p>
+        <p id="memoModalDateInfo" style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px; font-weight: 700;"></p>
+        <div class="form-group">
+          <label for="memoText">メモ内容 (例: チラシ掲載、イベント売込、値引き予定など)</label>
+          <input type="text" class="input-custom" id="memoText" placeholder="メモを入力してください...">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeMemoModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveMemo()">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Anomaly Alerts -->
+  <div class="modal" id="alertsModal">
+    <div class="modal-content" style="width: 500px; max-width: 90vw;">
+      <div class="modal-header">
+        🔔 発注アラート (過剰発注警告)
+      </div>
+      <div class="modal-body" id="alertsModalBody" style="max-height: 400px; overflow-y: auto;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeAlertsModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for Frequently Viewed Products -->
+  <div class="modal" id="favoritesModal">
+    <div class="modal-content" style="width: 460px; max-width: 90vw;">
+      <div class="modal-header">
+        🌟 よく閲覧する商品 (自動学習)
+      </div>
+      <div class="modal-body" id="favoritesModalBody" style="max-height: 400px; overflow-y: auto;">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeFavoritesModal()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: ご利用ガイド -->
+  <div class="modal" id="guideModal">
+    <div class="modal-content" style="width: 600px; max-width: 92vw;">
+      <div class="modal-header">📖 ご利用ガイド（本部発注切り替えアプリ）</div>
+      <div class="modal-body" style="max-height: 65vh; overflow-y: auto; font-size: 13px; line-height: 1.7;">
+        <p style="font-weight:700; margin-bottom:6px;">■ このアプリでできること</p>
+        <p style="margin-bottom:12px;">本部から配布された発注書（仕入先ごとのシート）を、<b>店舗ごと・日付ごと</b>の見やすい一覧表に切り替えて確認できます。</p>
+
+        <p style="font-weight:700; margin-bottom:6px;">■ 基本の使い方（店舗の方）</p>
+        <ol style="padding-left:20px; margin-bottom:12px;">
+          <li><b>店舗を選んで接続</b>：入口で自店舗を選び「選択した店舗で接続」。</li>
+          <li><b>一覧の見方</b>：縦が「お届け日」、横が「商品」（規格・原価つき）。数字が発注数です。右端は日別の原価合計。</li>
+          <li><b>店舗の切替</b>：画面上部の「店舗（切替）」で、ログアウトせず別店舗に切り替えられます。</li>
+          <li><b>絞り込み</b>：「対象月」「取引先」「商品検索」で表示を絞れます（対象月を変えると取引先の候補もその月の内容に変わります）。</li>
+        </ol>
+
+        <p style="font-weight:700; margin-bottom:6px;">■ 便利な機能</p>
+        <ul style="padding-left:20px; margin-bottom:12px;">
+          <li><b>📍 ピン留め</b>：商品ヘッダの📍で、その商品を最左列に固定できます（定番品の確認に）。</li>
+          <li><b>📝 メモ</b>：数量セルを<b>ダブルクリック</b>すると、その商品×日付にメモを残せます（例：チラシ特売、イベント売込）。</li>
+          <li><b>🔔 アラート</b>：いつもより極端に多い発注を自動で検知し、誤入力・過剰発注の気づきになります。</li>
+          <li><b>🌟 よく見る商品</b>：よく確認する商品が自動で学習・表示されます。</li>
+          <li><b>📊 スプシ書き出し</b>：今表示中の内容を、罫線・合計つきのGoogleスプレッドシートに出力できます。</li>
+        </ul>
+
+        <p style="font-weight:700; margin-bottom:6px;">■ 管理者の方（データ取込）</p>
+        <ul style="padding-left:20px; margin-bottom:12px;">
+          <li>「⚙ 管理者同期」→ 取り込む部門と発注書ファイル（Googleスプレッドシート形式）を選び「発注データを同期」。</li>
+          <li>同一ファイルの再取込は上書き（重複しません）。月違いのファイルは月別履歴として追加されます。</li>
+          <li>取込時に商品名を取得できなかった商品があれば、その商品コードを警告で表示します。</li>
+        </ul>
+
+        <p style="font-size:12px; color:#64748b;">※このアプリは会社指定ドメイン（jaz-acoop.co.jp ほか）のアカウントのみ利用できます。ご不明点は本部担当までお問い合わせください。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeGuide()">閉じる</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
+  <!-- Client JavaScript -->
+  <script>
+    // グローバル状態
+    var currentStoreCode = "";
+    var currentStoreName = "";
+    var rawOrders = [];
+    var memos = {};
+    var pinned = [];
+    var alerts = {};
+    var dateHeaders = [];
+    var productHeaders = [];
+    var gridMatrix = [];
+    var uniqueSuppliers = [];
+    var monthsList = [];
+    var fileMonths = {};
+    var loadingWatchdog = null;
+    var allStores = {};
+    var currentUserEmail = "";
+
+    // ===== GitHub Pages 版 設定（スマレコと同一の社内標準方式） =====
+    var CONFIG = {
+      // GAS APIエンドポイント（本番 /exec）。同じデプロイを「新バージョン」で更新する限りURLは不変。
+      GAS_URL: 'https://script.google.com/macros/s/AKfycbwhb1kd2Zp12nSdBiNo3Ac87TBLd8pjw2gYX6OVQEANfJcyzdIsmNIADWbjgE_xtn4/exec',
+      // acoop-ai.github.io はスマレコと同一オリジンのため、実績のある同じ Client ID を共用する
+      GOOGLE_CLIENT_ID: '1072945615483-74jadmaet56chvhkfh2cpt4ae9dvh140.apps.googleusercontent.com',
+      ALLOWED_DOMAINS: ['jaz-acoop.co.jp', 'jaz-acoop1.jp', 'jaz-acoop2.jp', 'jaz-acoop3.jp'],
+      APP_VERSION: '2.00'
+    };
+
+    // ===== GIS OAuth2 トークン管理 =====
+    var currentAccessToken = null;
+    var accessTokenExpiry = 0;      // unix ms
+    var oauthTokenClient = null;
+    var tokenRefreshTimer = null;
+    var TOKEN_STORE_KEY = 'honbu_hatchu_oauth_token_v1';
+
+    // 現在編集中のメモ対象
+    var activeMemoCell = {
+      date: "",
+      productCode: "",
+      productName: ""
+    };
+
+    var latestViewStats = [];
+
+    // ダイナミックソート状態
+    var clickedDateSort = null;
+    var clickedProductSort = null;
+
+    // ============================================================
+    // 認証（GIS OAuth2 アクセストークン方式・スマレコと同一）
+    //   - トークンは localStorage に保存し、期限内なら再ログイン無しで復帰
+    //   - 期限5分前にサイレント自動更新
+    //   - サーバー(GAS)側でも毎APIコールでトークンを検証（ハードな関所）
+    // ============================================================
+    function persistAccessToken_() {
+      try {
+        if (!currentAccessToken || !accessTokenExpiry) return;
+        localStorage.setItem(TOKEN_STORE_KEY, JSON.stringify({ t: currentAccessToken, e: accessTokenExpiry }));
+      } catch (_) {}
+    }
+
+    function restoreAccessToken_() {
+      try {
+        var raw = localStorage.getItem(TOKEN_STORE_KEY);
+        if (!raw) return false;
+        var o = JSON.parse(raw);
+        if (!o || !o.t || !o.e || Date.now() > o.e - 60 * 1000) return false;
+        currentAccessToken = o.t;
+        accessTokenExpiry = o.e;
+        scheduleAccessTokenRefresh_(Math.floor((o.e - Date.now()) / 1000) + 30);
+        return true;
+      } catch (_) { return false; }
+    }
+
+    function clearStoredToken_() {
+      try { localStorage.removeItem(TOKEN_STORE_KEY); } catch (_) {}
+    }
+
+    function ensureOAuthTokenClient_() {
+      if (oauthTokenClient) return;
+      if (!(window.google && google.accounts && google.accounts.oauth2)) {
+        throw new Error('Google Identity Services がロードされていません。回線を確認して再読み込みしてください。');
+      }
+      oauthTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CONFIG.GOOGLE_CLIENT_ID,
+        scope: 'openid email profile',
+        callback: function () {}  // requestAccessTokenOnce_ で都度上書き
+      });
+    }
+
+    function requestAccessTokenOnce_(opts) {
+      return new Promise(function (resolve, reject) {
+        try { ensureOAuthTokenClient_(); } catch (e) { return reject(e); }
+        var isSilent = !!(opts && opts.silent);
+        var settled = false;
+        var guard = null;
+        if (isSilent) {
+          guard = setTimeout(function () {
+            if (settled) return;
+            settled = true;
+            reject(new Error('サイレント再認証がタイムアウトしました'));
+          }, 10000);
+        }
+        oauthTokenClient.callback = function (resp) {
+          if (settled) return;
+          settled = true;
+          if (guard) clearTimeout(guard);
+          if (!resp) return reject(new Error('empty oauth2 response'));
+          if (resp.error) return reject(new Error(resp.error_description || resp.error));
+          if (!resp.access_token) return reject(new Error('no access_token'));
+          currentAccessToken = resp.access_token;
+          var expiresIn = Number(resp.expires_in) || 3600;
+          accessTokenExpiry = Date.now() + (expiresIn - 30) * 1000;
+          persistAccessToken_();
+          scheduleAccessTokenRefresh_(expiresIn);
+          resolve(resp);
+        };
+        try {
+          var req = {};
+          if (isSilent) req.prompt = '';
+          oauthTokenClient.requestAccessToken(req);
+        } catch (e) {
+          if (settled) return;
+          settled = true;
+          if (guard) clearTimeout(guard);
+          reject(e);
+        }
+      });
+    }
+
+    function scheduleAccessTokenRefresh_(expiresInSec) {
+      if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
+      var refreshAfter = Math.min(Math.max((expiresInSec - 5 * 60) * 1000, 5000), 55 * 60 * 1000);
+      tokenRefreshTimer = setTimeout(function () {
+        requestAccessTokenOnce_({ silent: true }).catch(function (e) {
+          console.warn('token refresh failed:', e);
+        });
+      }, refreshAfter);
+    }
+
+    function fetchUserInfo_() {
+      return fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: { Authorization: 'Bearer ' + currentAccessToken }
+      }).then(function (res) {
+        if (!res.ok) throw new Error('userinfo HTTP ' + res.status);
+        return res.json();
+      });
+    }
+
+    function showAuthError_(msg) {
+      var el = document.getElementById('authError');
+      if (!el) return;
+      if (msg) { el.textContent = msg; el.style.display = 'block'; }
+      else { el.style.display = 'none'; }
+    }
+
+    async function startGoogleLogin() {
+      var btn = document.getElementById('googleLoginBtn');
+      try {
+        if (btn) btn.disabled = true;
+        showAuthError_('');
+        await requestAccessTokenOnce_({});
+        var info = await fetchUserInfo_();
+        var email = String(info.email || '').toLowerCase();
+        var domain = email.split('@')[1] || '';
+        if (CONFIG.ALLOWED_DOMAINS.indexOf(domain) === -1) {
+          currentAccessToken = null; accessTokenExpiry = 0; clearStoredToken_();
+          showAuthError_('このアカウント（' + email + '）では利用できません。会社アカウント（jaz-acoop系4ドメイン）でログインし直してください。');
+          return;
+        }
+        await onAuthed_(email);
+      } catch (e) {
+        showAuthError_('ログインに失敗しました: ' + ((e && e.message) || e));
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    async function onAuthed_(email) {
+      currentUserEmail = email;
+      var disp = document.getElementById('userEmailDisplay');
+      if (disp) { disp.textContent = '👤 ' + email; disp.style.display = 'inline'; }
+      showPanel('loginPanel');
+      // セッション開始をサーバーに記録（接続者ログ）。失敗しても画面は止めない。
+      callGAS('login').then(function (r) {
+        if (r && r.version) console.log('API version:', r.version);
+      }).catch(function (e) { console.warn('login log failed:', e); });
+      loadInitialData_();
+    }
+
+    // ===== GAS API 通信層（fetch版） =====
+    async function callGAS(action, data) {
+      data = data || {};
+      var noToken = !currentAccessToken;
+      var nearExpiry = accessTokenExpiry && Date.now() > accessTokenExpiry - 60 * 1000;
+      if (noToken || nearExpiry) {
+        try { await requestAccessTokenOnce_({ silent: true }); }
+        catch (e) { console.warn('silent token refresh failed:', e); }
+      }
+      if (!currentAccessToken) {
+        showPanel('authPanel');
+        showAuthError_('セッションの有効期限が切れました。再度ログインしてください。');
+        throw new Error('セッション切れです。再度ログインしてください。');
+      }
+      var payload = Object.assign({ action: action, accessToken: currentAccessToken }, data);
+      var res = await fetch(CONFIG.GAS_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(payload),
+        redirect: 'follow'
+      });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var json = await res.json();
+      if (json && json.error) {
+        // サーバー側で認証が通らないトークンは端末保存からも破棄（無限再試行を防止）
+        if (String(json.error).indexOf('認証失敗') >= 0) {
+          currentAccessToken = null; accessTokenExpiry = 0; clearStoredToken_();
+        }
+        throw new Error(json.error);
+      }
+      return json.result;
+    }
+
+    // 初期化ロード：保存済みトークンがあればサイレント復帰、無ければ認証画面
+    window.onload = async function () {
+      if (restoreAccessToken_()) {
+        try {
+          var info = await fetchUserInfo_();
+          var email = String(info.email || '').toLowerCase();
+          var domain = email.split('@')[1] || '';
+          if (email && CONFIG.ALLOWED_DOMAINS.indexOf(domain) !== -1) {
+            await onAuthed_(email);
+            return;
+          }
+        } catch (e) { /* 復帰失敗 → 通常ログインへ */ }
+        currentAccessToken = null; accessTokenExpiry = 0; clearStoredToken_();
+      }
+      showPanel('authPanel');
+    };
+
+    // 認証後の初期データ読み込み（店舗一覧＋診断情報）
+    async function loadInitialData_() {
+      showLoading("店舗一覧を読み込んでいます...");
+      try {
+        var stores = await callGAS('getStores');
+        hideLoading();
+        allStores = stores || {};
+        fillStoreOptions(document.getElementById("storeSelect"), allStores);
+        fillStoreOptions(document.getElementById("headerStoreSelect"), allStores);
+      } catch (err) {
+        hideLoading();
+        showToast("店舗一覧の取得に失敗しました: " + err.message, "error");
+      }
+      // システム診断デバッグ情報（失敗しても本処理を妨げない）
+      try {
+        var debug = await callGAS('getDebugInfo');
+        var debugDiv = document.getElementById("debugSection");
+        var debugContent = document.getElementById("debugContent");
+        if (debugDiv && debugContent) {
+          debugDiv.style.display = "block";
+          debugContent.textContent = JSON.stringify(debug, null, 2);
+        }
+      } catch (e) {}
+    }
+
+    /**
+     * 店舗セレクトに選択肢を流し込む共通処理（ログイン画面・ダッシュボード上部で共用）
+     */
+    function fillStoreOptions(select, stores) {
+      if (!select) return;
+      select.innerHTML = "";
+      var keys = Object.keys(stores || {});
+      if (keys.length === 0) {
+        select.innerHTML = '<option value="">店舗データが見つかりません</option>';
+        return;
+      }
+      keys.sort(function(a, b) { return parseInt(a, 10) - parseInt(b, 10); });
+      keys.forEach(function(code) {
+        var opt = document.createElement("option");
+        opt.value = code;
+        opt.textContent = code + " : " + stores[code];
+        select.appendChild(opt);
+      });
+    }
+
+    /**
+     * 店舗ログイン
+     */
+    function login() {
+      var select = document.getElementById("storeSelect");
+      var code = select.value;
+      if (!code) {
+        showToast("店舗を選択してください。", "warning");
+        return;
+      }
+
+      currentStoreCode = code;
+      currentStoreName = select.options[select.selectedIndex].textContent.split(" : ")[1];
+
+      // ダッシュボード上部の店舗切替セレクトを現在の店舗に同期
+      var hsel = document.getElementById("headerStoreSelect");
+      if (hsel) hsel.value = code;
+
+      document.getElementById("currentStoreDisplay").textContent = "店舗: " + currentStoreName;
+      document.getElementById("currentStoreDisplay").style.display = "inline";
+      document.getElementById("logoutBtn").style.display = "inline";
+
+      showPanel("dashboardPanel");
+      loadDashboardData();
+    }
+
+    /**
+     * ログアウトせずに、メイン画面のまま別店舗へ切り替える
+     */
+    function switchStore() {
+      var hsel = document.getElementById("headerStoreSelect");
+      var code = hsel.value;
+      if (!code || code === currentStoreCode) return;
+
+      currentStoreCode = code;
+      currentStoreName = hsel.options[hsel.selectedIndex].textContent.split(" : ")[1];
+
+      // 並べ替え状態は店舗ごとにリセット
+      clickedDateSort = null;
+      clickedProductSort = null;
+
+      // ログイン画面側のセレクトも同期しておく
+      var lsel = document.getElementById("storeSelect");
+      if (lsel) lsel.value = code;
+
+      loadDashboardData();
+    }
+
+    /**
+     * ログアウト
+     */
+    function logout() {
+      currentStoreCode = "";
+      currentStoreName = "";
+      clickedDateSort = null;
+      clickedProductSort = null;
+      document.getElementById("currentStoreDisplay").style.display = "none";
+      document.getElementById("logoutBtn").style.display = "none";
+      showPanel("loginPanel");
+    }
+
+    /**
+     * パネル切り替え
+     */
+    function showPanel(panelId) {
+      document.querySelectorAll(".panel").forEach(function(panel) {
+        panel.classList.remove("active");
+      });
+      document.getElementById(panelId).classList.add("active");
+    }
+
+    function showDashboard() {
+      if (currentStoreCode) {
+        showPanel("dashboardPanel");
+      } else {
+        showPanel("loginPanel");
+      }
+    }
+
+    /**
+     * 管理者同期画面を開く
+     */
+    function openAdminPanel() {
+      showPanel("adminPanel");
+      scanDriveFiles();
+    }
+
+    /**
+     * Googleドライブ内のファイルをスキャン
+     */
+    async function scanDriveFiles() {
+      showLoading("Googleドライブ内のファイルを検索中...");
+      try {
+        var files = await callGAS('getExcelFilesInDrive');
+        hideLoading();
+        var select = document.getElementById("driveFileSelect");
+        select.innerHTML = "";
+
+        if (!files || files.length === 0) {
+          select.innerHTML = '<option value="">ドライブ内にファイルが見つかりません</option>';
+          return;
+        }
+
+        files.forEach(function(f) {
+          var opt = document.createElement("option");
+          opt.value = f.id;
+          opt.textContent = f.name + " (" + f.lastUpdated.slice(0,10) + ")";
+          select.appendChild(opt);
+        });
+      } catch (err) {
+        hideLoading();
+        showToast("ドライブのファイル検索に失敗しました: " + err.message, "error");
+      }
+    }
+
+    /**
+     * 店舗の発注データのロード
+     */
+    async function loadDashboardData() {
+      var dept = document.getElementById("deptSelect").value;
+      showLoading("発注データを読み込んでいます...");
+
+      try {
+        var res = await callGAS('getStoreOrders', { storeCode: currentStoreCode, department: dept });
+        hideLoading();
+        rawOrders = res.records;
+        memos = res.memos;
+        pinned = res.pinned;
+        alerts = res.alerts;
+        monthsList = res.months;
+        latestViewStats = res.viewStats;
+        fileMonths = res.fileMonths || {};
+
+        currentStoreName = res.storeName;
+        document.getElementById("currentStoreDisplay").textContent = "店舗: " + currentStoreName;
+
+        buildMonthFilter();
+        buildSupplierFilter();
+        updateAlertsBadge();
+        buildGrid();
+      } catch (err) {
+        hideLoading();
+        showToast("データの読み込みに失敗しました: " + err.message, "error");
+      }
+    }
+
+    /**
+     * 対象月フィルタの構築
+     */
+    function buildMonthFilter() {
+      var filter = document.getElementById("monthFilter");
+      var oldVal = filter.value;
+      filter.innerHTML = "";
+      
+      if (monthsList.length === 0) {
+        filter.innerHTML = '<option value="">データなし</option>';
+        return;
+      }
+      
+      monthsList.forEach(function(m) {
+        var opt = document.createElement("option");
+        opt.value = m;
+        var parts = m.split('-');
+        opt.textContent = parts[0] + "年" + parts[1] + "月";
+        filter.appendChild(opt);
+      });
+      
+      if (monthsList.indexOf(oldVal) !== -1) {
+        filter.value = oldVal;
+      } else {
+        filter.value = monthsList[0];
+      }
+    }
+
+    /**
+     * 取引先フィルタの組み立て
+     */
+    function buildSupplierFilter() {
+      var monthVal = document.getElementById("monthFilter").value;
+      var filter = document.getElementById("supplierFilter");
+      var oldVal = filter.value;
+      filter.innerHTML = '<option value="">すべて</option>';
+
+      var supplierOrder = [];
+      rawOrders.forEach(function(o) {
+        // 選択中の対象月に含まれる取引先だけを候補にする（＝月を切り替えると取引先も追随する）
+        var recFileMonth = fileMonths[o.fileName] || "";
+        if (monthVal && recFileMonth !== monthVal) return;
+        if (o.supplier && supplierOrder.indexOf(o.supplier) === -1) {
+          supplierOrder.push(o.supplier);
+        }
+      });
+
+      uniqueSuppliers = supplierOrder;
+      uniqueSuppliers.forEach(function(sup) {
+        var opt = document.createElement("option");
+        opt.value = sup;
+        opt.textContent = sup;
+        filter.appendChild(opt);
+      });
+
+      // 直前の選択がこの月にも存在すれば維持。無ければ「すべて」に戻す（空表示を防ぐ）
+      filter.value = (uniqueSuppliers.indexOf(oldVal) !== -1) ? oldVal : "";
+    }
+
+    /**
+     * 対象月が変わったら、取引先候補をその月の内容に更新してから再描画する
+     */
+    function onMonthChange() {
+      buildSupplierFilter();
+      buildGrid();
+    }
+
+    /**
+     * アラート数バッジの更新
+     */
+    function updateAlertsBadge() {
+      var activeAlertsCount = getActiveAlertsList().length;
+      var alertsBtn = document.getElementById("alertsBtn");
+      
+      if (activeAlertsCount > 0) {
+        alertsBtn.style.background = "#fee2e2";
+        alertsBtn.style.borderColor = "#ef4444";
+        alertsBtn.style.color = "#991b1b";
+        alertsBtn.innerHTML = '🔔 アラート <span style="background:#ef4444; color:#fff; border-radius:50%; padding:1px 6px; font-size:10px; margin-left:3px;">' + activeAlertsCount + '</span>';
+      } else {
+        alertsBtn.style.background = "#f8fafc";
+        alertsBtn.style.borderColor = "var(--card-border)";
+        alertsBtn.style.color = "var(--text-main)";
+        alertsBtn.innerHTML = '🔔 アラート';
+      }
+    }
+
+    /**
+     * 異常発注のリストを計算して取得
+     */
+    function getActiveAlertsList() {
+      var activeAlerts = [];
+      var productTotals = {};
+      
+      rawOrders.forEach(function(o) {
+        if (!productTotals[o.productCode]) {
+          productTotals[o.productCode] = {
+            name: o.productName,
+            supplier: o.supplier,
+            maxQty: 0,
+            maxQtyDate: ""
+          };
+        }
+        if (o.quantity > productTotals[o.productCode].maxQty) {
+          productTotals[o.productCode].maxQty = o.quantity;
+          productTotals[o.productCode].maxQtyDate = o.date;
+        }
+      });
+      
+      for (var pCode in productTotals) {
+        var stat = alerts[pCode];
+        var info = productTotals[pCode];
+        if (stat && info.maxQty >= stat.threshold) {
+          var diffPct = Math.round(((info.maxQty - stat.mean) / stat.mean) * 100);
+          if (diffPct > 0) {
+            activeAlerts.push({
+              productCode: pCode,
+              productName: info.name,
+              supplier: info.supplier,
+              maxQty: info.maxQty,
+              maxQtyDate: info.maxQtyDate,
+              mean: stat.mean,
+              diffPct: diffPct
+            });
+          }
+        }
+      }
+      return activeAlerts;
+    }
+
+    /**
+     * 発注アラートモーダルを開く
+     */
+    function openAlertsModal() {
+      var body = document.getElementById("alertsModalBody");
+      body.innerHTML = "";
+      
+      var list = getActiveAlertsList();
+      if (list.length === 0) {
+        body.innerHTML = '<div class="alert-empty">現在、過剰な発注アラートはありません。</div>';
+      } else {
+        var listDiv = document.createElement("div");
+        listDiv.className = "widget-modal-list";
+        
+        list.sort(function(a, b) { return b.diffPct - a.diffPct; });
+        list.forEach(function(al) {
+          var item = document.createElement("div");
+          item.className = "widget-modal-item";
+          item.innerHTML = '<div class="alert-header">⚠️ ' + al.productName + ' (' + al.productCode + ')</div>' +
+                           '<div class="alert-body" style="margin-top:6px;">' +
+                           '取引先: <strong>' + al.supplier + '</strong><br>' +
+                           '検出日時: ' + formatDateString(al.maxQtyDate) + ' | 数量: <strong style="color:#b91c1c;">' + al.maxQty + '</strong> (通常平均: ' + al.mean + ')<br>' +
+                           '<span style="color:#d97706; font-weight:700;">※通常の注文量より ' + al.diffPct + '% 増加しています。誤入力がないかご確認ください。</span>' +
+                           '</div>';
+          listDiv.appendChild(item);
+        });
+        body.appendChild(listDiv);
+      }
+      document.getElementById("alertsModal").style.display = "flex";
+    }
+
+    function closeAlertsModal() {
+      document.getElementById("alertsModal").style.display = "none";
+    }
+
+    /**
+     * よく閲覧する商品モーダルを開く
+     */
+    function openFavoritesModal() {
+      var body = document.getElementById("favoritesModalBody");
+      body.innerHTML = "";
+      
+      if (!latestViewStats || latestViewStats.length === 0) {
+        body.innerHTML = '<div class="alert-empty">まだ閲覧履歴データはありません。</div>';
+      } else {
+        var listDiv = document.createElement("div");
+        listDiv.className = "widget-modal-list";
+        
+        latestViewStats.forEach(function(st, idx) {
+          var prodName = st.productCode;
+          for (var i = 0; i < rawOrders.length; i++) {
+            if (rawOrders[i].productCode === st.productCode) {
+              prodName = rawOrders[i].productName;
+              break;
+            }
+          }
+          
+          var item = document.createElement("div");
+          item.className = "widget-modal-item";
+          item.style.display = "flex";
+          item.style.justifyContent = "space-between";
+          item.style.alignItems = "center";
+          
+          item.innerHTML = '<div>' +
+                           '  <strong>' + (idx+1) + '. ' + prodName + '</strong><br>' +
+                           '  <span style="font-size:11px; color:var(--text-muted);">コード: ' + st.productCode + ' | 取引先: ' + st.supplier + '</span>' +
+                           '</div>' +
+                           '<span class="view-count" style="font-size:12px; padding:3px 10px;">' + st.count + ' 回閲覧</span>';
+          listDiv.appendChild(item);
+        });
+        body.appendChild(listDiv);
+      }
+      
+      document.getElementById("favoritesModal").style.display = "flex";
+    }
+
+    function closeFavoritesModal() {
+      document.getElementById("favoritesModal").style.display = "none";
+    }
+
+    /**
+     * ご利用ガイドの開閉（入口・アプリ内の両方から呼ぶ）
+     */
+    function openGuide() {
+      document.getElementById("guideModal").style.display = "flex";
+    }
+    function closeGuide() {
+      document.getElementById("guideModal").style.display = "none";
+    }
+
+    function getQtyOnProduct(date, productCode) {
+      for (var i = 0; i < rawOrders.length; i++) {
+        var o = rawOrders[i];
+        if (o.date === date && o.productCode === productCode) {
+          return o.quantity || 0;
+        }
+      }
+      return 0;
+    }
+    
+    function getQtyOnDate(productCode, date) {
+      for (var i = 0; i < rawOrders.length; i++) {
+        var o = rawOrders[i];
+        if (o.productCode === productCode && o.date === date) {
+          return o.quantity || 0;
+        }
+      }
+      return 0;
+    }
+
+    function toggleDateSort(date) {
+      if (clickedDateSort === date) {
+        clickedDateSort = null;
+        showToast("日付ソートを解除しました", "success");
+      } else {
+        clickedDateSort = date;
+        clickedProductSort = null;
+        showToast(formatDateString(date) + " の納品分を左寄せしました", "success");
+      }
+      buildGrid();
+    }
+
+    function toggleProductSort(productCode, productName) {
+      if (clickedProductSort === productCode) {
+        clickedProductSort = null;
+        showToast("商品ソートを解除しました", "success");
+      } else {
+        clickedProductSort = productCode;
+        clickedDateSort = null;
+        showToast(productName + " の納品日を上寄せしました", "success");
+      }
+      buildGrid();
+    }
+
+    /**
+     * 発注時系列グリッドマトリクスのビルド
+     */
+    function buildGrid() {
+      var monthVal = document.getElementById("monthFilter").value;
+      var supplierVal = document.getElementById("supplierFilter").value;
+      var searchVal = document.getElementById("searchFilter").value.toLowerCase();
+      
+      var filteredRecords = rawOrders.filter(function(o) {
+        var recFileMonth = fileMonths[o.fileName] || "";
+        var matchMonth = !monthVal || recFileMonth === monthVal;
+        var matchSup = !supplierVal || o.supplier === supplierVal;
+        var matchSearch = !searchVal || 
+                          o.productName.toLowerCase().indexOf(searchVal) !== -1 || 
+                          o.productCode.toLowerCase().indexOf(searchVal) !== -1;
+        return matchMonth && matchSup && matchSearch;
+      });
+      
+      var dates = {};
+      var products = {};
+      var productOrder = [];
+      
+      filteredRecords.forEach(function(o) {
+        dates[o.date] = true;
+        if (!products[o.productCode]) {
+          products[o.productCode] = {
+            code: o.productCode,
+            name: o.productName,
+            specs: o.specs,
+            cost: o.cost,
+            supplier: o.supplier,
+            isPinned: pinned.indexOf(o.productCode) !== -1
+          };
+          productOrder.push(o.productCode);
+        }
+      });
+      
+      // 1. 日付列のソート
+      dateHeaders = Object.keys(dates).sort();
+      if (clickedProductSort) {
+        dateHeaders.sort(function(a, b) {
+          var qtyA = getQtyOnProduct(a, clickedProductSort);
+          var qtyB = getQtyOnProduct(b, clickedProductSort);
+          if ((qtyA > 0) !== (qtyB > 0)) {
+            return qtyA > 0 ? -1 : 1;
+          }
+          return a.localeCompare(b);
+        });
+      }
+      
+      // 2. 商品列のソート
+      productHeaders = Object.keys(products).map(function(k) { return products[k]; });
+      productHeaders.sort(function(a, b) {
+        if (a.isPinned !== b.isPinned) {
+          return a.isPinned ? -1 : 1;
+        }
+        
+        if (clickedDateSort) {
+          var qtyA = getQtyOnDate(a.code, clickedDateSort);
+          var qtyB = getQtyOnDate(b.code, clickedDateSort);
+          if ((qtyA > 0) !== (qtyB > 0)) {
+            return qtyA > 0 ? -1 : 1;
+          }
+        }
+        
+        return productOrder.indexOf(a.code) - productOrder.indexOf(b.code);
+      });
+      
+      gridMatrix = [];
+      for (var r = 0; r < dateHeaders.length; r++) {
+        var row = [];
+        for (var c = 0; c < productHeaders.length; c++) {
+          row.push(0);
+        }
+        gridMatrix.push(row);
+      }
+      
+      filteredRecords.forEach(function(o) {
+        var rIdx = dateHeaders.indexOf(o.date);
+        var cIdx = -1;
+        for (var c = 0; c < productHeaders.length; c++) {
+          if (productHeaders[c].code === o.productCode) {
+            cIdx = c;
+            break;
+          }
+        }
+        if (rIdx !== -1 && cIdx !== -1) {
+          gridMatrix[rIdx][cIdx] = o.quantity;
+        }
+      });
+      
+      renderTable();
+    }
+
+    /**
+     * フィルタ適用
+     */
+    function applyFilters() {
+      buildGrid();
+    }
+
+    /**
+     * テーブルの描画
+     */
+    function renderTable() {
+      var table = document.getElementById("gridTable");
+      table.innerHTML = "";
+      
+      if (dateHeaders.length === 0 || productHeaders.length === 0) {
+        table.innerHTML = '<tr><td style="padding: 40px; text-align: center; color: var(--text-muted); font-weight: bold; border: var(--card-border-thick);">選択された月に該当する発注データはありません。</td></tr>';
+        return;
+      }
+      
+      var headerTr = document.createElement("tr");
+      
+      var cornerTh = document.createElement("th");
+      cornerTh.innerHTML = '<div style="font-weight: 800; color: #ffffff;">お届け日</div>';
+      headerTr.appendChild(cornerTh);
+      
+      productHeaders.forEach(function(p) {
+        var th = document.createElement("th");
+        if (p.isPinned) {
+          th.className = "pinned";
+        }
+        
+        var isProdSorted = p.code === clickedProductSort;
+        var pinIcon = p.isPinned ? "📌" : "📍";
+        
+        if (isProdSorted) {
+          th.style.backgroundColor = "#fef08a";
+          th.style.color = "#0f172a";
+        }
+        
+        var displayName = (isProdSorted ? "👇 " : "") + p.name;
+        
+        th.innerHTML = '<div class="product-header-content">' + 
+                       '<span class="product-title" style="cursor: pointer;" title="クリックでこの商品の納品日を上寄せします">' + displayName + '</span>' + 
+                       '<span class="product-specs">' + p.specs + '</span>' +
+                       '<span class="product-cost">￥' + Math.round(p.cost) + '</span>' +
+                       '<button class="pin-btn" onclick="togglePin(\'' + p.code + '\')" title="' + (p.isPinned ? "優先表示解除" : "最優先表示にピン留め") + '">' + pinIcon + '</button>' +
+                       '</div>';
+        
+        var titleSpan = th.querySelector(".product-title");
+        (function(code, name) {
+          titleSpan.onclick = function(e) {
+            e.stopPropagation();
+            toggleProductSort(code, name);
+          };
+        })(p.code, p.name);
+        
+        headerTr.appendChild(th);
+      });
+      
+      var totalTh = document.createElement("th");
+      totalTh.innerHTML = '<div class="product-header-content"><span class="product-title" style="color: #ffffff; -webkit-line-clamp: 2;">日別合計<br>(原価額)</span></div>';
+      headerTr.appendChild(totalTh);
+      
+      table.appendChild(headerTr);
+      
+      for (var r = 0; r < dateHeaders.length; r++) {
+        var tr = document.createElement("tr");
+        
+        var dateTd = document.createElement("td");
+        var isDateSorted = clickedDateSort === dateHeaders[r];
+        var formattedDate = (isDateSorted ? "👉 " : "") + formatDateString(dateHeaders[r]);
+        dateTd.innerHTML = formattedDate;
+        dateTd.style.cursor = "pointer";
+        dateTd.title = "クリックでこの日の注文分を左寄せします";
+        
+        if (isDateSorted) {
+          dateTd.style.backgroundColor = "#fef08a";
+          dateTd.style.color = "#0f172a";
+        }
+        
+        (function(date) {
+          dateTd.onclick = function() {
+            toggleDateSort(date);
+          };
+        })(dateHeaders[r]);
+        
+        tr.appendChild(dateTd);
+        
+        var dailyCostTotal = 0.0;
+        
+        for (var c = 0; c < productHeaders.length; c++) {
+          var td = document.createElement("td");
+          var qty = gridMatrix[r][c];
+          var p = productHeaders[c];
+          
+          if (qty > 0) {
+            td.className = "cell-qty has-value";
+            td.textContent = qty;
+            
+            dailyCostTotal += qty * p.cost;
+            
+            var stat = alerts[p.code];
+            var isAnomaly = stat && qty >= stat.threshold;
+            var badgeHtml = isAnomaly ? '<div class="cell-alert-badge"></div>' : '';
+            
+            var memoKey = dateHeaders[r] + "_" + p.code;
+            var memoText = memos[memoKey] || "";
+            var memoIconHtml = memoText ? '<div class="cell-memo-indicator">📝</div>' : '';
+            
+            td.innerHTML = qty + badgeHtml + memoIconHtml;
+            
+            var tooltip = document.createElement("div");
+            tooltip.className = "tooltip";
+            
+            var alertMessage = isAnomaly ? '<span style="color:#fbbf24; font-weight:800;">⚠️ 警告: 通常比大幅オーバー (平均 ' + stat.mean + ')</span><hr>' : '';
+            var memoDisplay = memoText ? '<strong>店舗メモ:</strong> ' + memoText + '<hr>' : '';
+            
+            tooltip.innerHTML = '<strong style="color:#93c5fd;">' + p.name + '</strong><br>' + 
+                                '材料コード: ' + p.code + '<br>' +
+                                '取引先: ' + p.supplier + '<br>' +
+                                '原価: ￥' + p.cost + ' | 規格: ' + p.specs + '<br><hr>' +
+                                alertMessage + 
+                                memoDisplay + 
+                                '<span style="color:#c084fc;">※ダブルクリックでメモを入力・編集</span>';
+            
+            td.appendChild(tooltip);
+            
+            (function(date, code, name) {
+              td.ondblclick = function() {
+                openMemoModal(date, code, name);
+              };
+            })(dateHeaders[r], p.code, p.name);
+            
+          } else {
+            td.className = "cell-qty";
+            td.innerHTML = "";
+            
+            (function(date, code, name) {
+              td.ondblclick = function() {
+                openMemoModal(date, code, name);
+              };
+            })(dateHeaders[r], p.code, p.name);
+          }
+          
+          tr.appendChild(td);
+        }
+        
+        var costTd = document.createElement("td");
+        costTd.style.fontWeight = "800";
+        costTd.style.textAlign = "right";
+        costTd.textContent = dailyCostTotal > 0 ? "￥" + Math.round(dailyCostTotal).toLocaleString() : "";
+        tr.appendChild(costTd);
+        
+        table.appendChild(tr);
+      }
+      
+      var totalTr = document.createElement("tr");
+      totalTr.className = "grid-total-row";
+      
+      var totalLabelTd = document.createElement("td");
+      totalLabelTd.textContent = "月間合計";
+      totalTr.appendChild(totalLabelTd);
+      
+      var grandCostTotal = 0.0;
+      
+      for (var c = 0; c < productHeaders.length; c++) {
+        var sum = 0;
+        var p = productHeaders[c];
+        for (var r = 0; r < dateHeaders.length; r++) {
+          var q = gridMatrix[r][c];
+          if (q > 0) sum += q;
+        }
+        
+        var colTotalTd = document.createElement("td");
+        colTotalTd.textContent = sum > 0 ? sum : "";
+        totalTr.appendChild(colTotalTd);
+        
+        grandCostTotal += sum * p.cost;
+      }
+      
+      var grandCostTd = document.createElement("td");
+      grandCostTd.style.color = "#047857";
+      grandCostTd.style.textAlign = "right";
+      grandCostTd.textContent = grandCostTotal > 0 ? "￥" + Math.round(grandCostTotal).toLocaleString() : "";
+      totalTr.appendChild(grandCostTd);
+      
+      table.appendChild(totalTr);
+    }
+
+    /**
+     * 商品のピン留めトグル
+     */
+    async function togglePin(productCode) {
+      showLoading("優先順位を更新中...");
+      try {
+        var res = await callGAS('togglePin', { storeCode: currentStoreCode, productCode: productCode });
+        hideLoading();
+        showToast(res.isPinned ? "優先表示にピン留めしました" : "ピン留めを解除しました", "success");
+        loadDashboardData();
+      } catch (err) {
+        hideLoading();
+        showToast("優先順位変更に失敗しました: " + err.message, "error");
+      }
+    }
+
+    /**
+     * 店舗メモダイアログの表示
+     */
+    function openMemoModal(date, productCode, productName) {
+      var supplier = "";
+      for (var i = 0; i < rawOrders.length; i++) {
+        if (rawOrders[i].productCode === productCode) {
+          supplier = rawOrders[i].supplier;
+          break;
+        }
+      }
+      callGAS('trackView', { storeCode: currentStoreCode, supplier: supplier, productCode: productCode }).catch(function(){});
+      
+      activeMemoCell.date = date;
+      activeMemoCell.productCode = productCode;
+      activeMemoCell.productName = productName;
+      
+      document.getElementById("memoModalProductInfo").textContent = "商品: " + productName + " (" + productCode + ")";
+      document.getElementById("memoModalDateInfo").textContent = "納品日: " + formatDateString(date);
+      
+      var memoKey = date + "_" + productCode;
+      document.getElementById("memoText").value = memos[memoKey] || "";
+      
+      document.getElementById("memoModal").style.display = "flex";
+      document.getElementById("memoText").focus();
+    }
+
+    function closeMemoModal() {
+      document.getElementById("memoModal").style.display = "none";
+    }
+
+    /**
+     * 店舗メモの保存
+     */
+    async function saveMemo() {
+      var memoText = document.getElementById("memoText").value.trim();
+      var date = activeMemoCell.date;
+      var code = activeMemoCell.productCode;
+
+      showLoading("メモを保存中...");
+
+      try {
+        await callGAS('saveMemo', { storeCode: currentStoreCode, date: date, productCode: code, memoText: memoText });
+        hideLoading();
+        closeMemoModal();
+
+        var memoKey = date + "_" + code;
+        if (memoText === "") {
+          delete memos[memoKey];
+          showToast("メモを削除しました", "success");
+        } else {
+          memos[memoKey] = memoText;
+          showToast("メモを保存しました", "success");
+        }
+        renderTable();
+      } catch (err) {
+        hideLoading();
+        showToast("メモの保存に失敗しました: " + err.message, "error");
+      }
+    }
+
+    /**
+     * Googleスプレッドシートへのエクスポート
+     */
+    async function exportToSpreadsheet() {
+      showLoading("スプレッドシートを生成中...");
+      var dept = document.getElementById("deptSelect").value;
+
+      try {
+        var res = await callGAS('exportToGoogleSheets', {
+          storeCode: currentStoreCode,
+          department: dept,
+          dateHeaders: dateHeaders,
+          productHeaders: productHeaders,
+          gridMatrix: gridMatrix,
+          storeName: currentStoreName
+        });
+        hideLoading();
+        showToast("スプシの書き出しに成功しました！", "success");
+        if (res.url) {
+          window.open(res.url, "_blank");
+        }
+      } catch (err) {
+        hideLoading();
+        showToast("エクスポートに失敗しました: " + err.message, "error");
+      }
+    }
+
+    /**
+     * 管理者インポートの実行
+     */
+    async function runImport() {
+      var select = document.getElementById("driveFileSelect");
+      var fileId = select.value;
+      var dept = document.getElementById("importDept").value;
+      
+      if (!fileId) {
+        showToast("同期するファイルを選択してください。", "warning");
+        return;
+      }
+      
+      showLoading("発注書を解析・同期中... (数秒かかります)");
+
+      try {
+        var res = await callGAS('parseSpreadsheetById', { fileId: fileId, department: dept });
+        hideLoading();
+        if (res.missingNames && res.missingNames.length > 0) {
+          showToast("同期完了(" + res.recordCount + "件)。ただし商品名を取得できなかったコードが " + res.missingNames.length + "件あります → " + res.missingNames.join(", ") + "（元ファイルの見出し構造を確認してください）", "warning");
+        } else {
+          showToast("同期完了！ '" + res.fileName + "' から " + res.recordCount + " レコードをインポートしました。", "success");
+        }
+
+        if (currentStoreCode) {
+          showDashboard();
+          loadDashboardData();
+        } else {
+          showPanel("loginPanel");
+        }
+      } catch (err) {
+        hideLoading();
+        showToast("同期に失敗しました: " + err.message, "error");
+      }
+    }
+
+    /**
+     * 【原本ファースト診断】選択した元ファイルの見出し構造を生ダンプして画面に表示する。
+     * 決め打ちで直す前に、取引先ごとのシートが実際どう並んでいるかを目視確認するための道具。
+     */
+    async function runInspectStructure() {
+      var select = document.getElementById("driveFileSelect");
+      var fileId = select.value;
+      if (!fileId) {
+        showToast("先に対象の発注書ファイルを選択してください。", "warning");
+        return;
+      }
+      showLoading("元ファイルの見出し構造を解析中...");
+      try {
+        var res = await callGAS('inspectSourceStructure', { fileId: fileId, targetCode: "137200000063" });
+        hideLoading();
+        var out = document.getElementById("inspectOutput");
+        out.style.display = "block";
+        out.textContent = JSON.stringify(res, null, 2);
+      } catch (err) {
+        hideLoading();
+        showToast("構造診断に失敗しました: " + err.message, "error");
+      }
+    }
+
+    /**
+     * データベースの全初期化の実行
+     */
+    async function runClearDatabase() {
+      if (!confirm("データベース内のすべての発注データを消去して初期化します。よろしいですか？\n(店舗メモや閲覧ログは消えません)")) {
+        return;
+      }
+
+      showLoading("データベースを初期化中...");
+      try {
+        await callGAS('clearDatabase');
+        hideLoading();
+        showToast("データベースの初期化が完了しました。発注書を再取り込みしてください。", "success");
+        rawOrders = [];
+        buildGrid();
+        showDashboard();
+      } catch (err) {
+        hideLoading();
+        showToast("初期化に失敗しました: " + err.message, "error");
+      }
+    }
+
+    /* --- ヘルパー関数 --- */
+    
+    function showLoading(text) {
+      document.getElementById("loadingOverlay").style.display = "flex";
+      document.getElementById("loadingText").textContent = text || "読み込み中...";
+      // 【無限スピナーの根絶】サーバーが応答を返さない場合でも、必ず一定時間で強制解除する保険。
+      // 30秒経っても success/failure ハンドラ(いずれも hideLoading を呼ぶ)が発火しなければ、
+      // スピナーを閉じ、原因確認へ誘導する。これで「永遠に回り続ける」状態は構造的に起こらない。
+      if (loadingWatchdog) { clearTimeout(loadingWatchdog); }
+      loadingWatchdog = setTimeout(function() {
+        document.getElementById("loadingOverlay").style.display = "none";
+        loadingWatchdog = null;
+        showToast("サーバーが30秒間応答しませんでした。GASエディタの[実行数]でエラーの有無をご確認ください（権限承認待ち・別バージョン稼働などが疑われます）。", "error");
+      }, 30000);
+    }
+
+    function hideLoading() {
+      document.getElementById("loadingOverlay").style.display = "none";
+      if (loadingWatchdog) { clearTimeout(loadingWatchdog); loadingWatchdog = null; }
+    }
+
+    function showToast(message, type) {
+      var toast = document.getElementById("toast");
+      toast.className = "toast show";
+      
+      if (type === "success") toast.classList.add("toast-success");
+      else if (type === "error") toast.classList.add("toast-error");
+      else if (type === "warning") toast.classList.add("toast-warning");
+      
+      toast.textContent = message;
+      
+      setTimeout(function() {
+        toast.className = "toast";
+      }, 4000);
+    }
+
+    function formatDateString(dateStr) {
+      if (!dateStr) return "";
+      var parts = dateStr.split('-');
+      if (parts.length < 3) return dateStr;
+      
+      var y = parts[0];
+      var m = parts[1];
+      var d = parts[2];
+      
+      return y + "/" + m + "/" + d;
+    }
+  </script>
+</body>
+</html>
