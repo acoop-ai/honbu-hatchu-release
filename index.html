@@ -736,13 +736,13 @@
       <div class="brand">
         <div class="brand-logo">本部発注切り替えアプリ</div>
         <div class="system-badge" style="background:#fef3c7;border-color:#b45309;color:#92400e;">惣菜テスト版</div>
-        <div class="system-badge" id="versionBadge">GitHub版 v2.00</div>
+        <div class="system-badge" id="versionBadge">GitHub版 v2.07</div>
       </div>
       <div class="nav-actions">
         <span id="userEmailDisplay" title="接続中のアカウント" style="font-size: 11px; color: #475569; margin-right: 10px; display: none;"></span>
         <span id="currentStoreDisplay" style="font-size: 14px; font-weight: 900; display: none; color: #1e3a8a; background: #dbeafe; padding: 4px 10px; border-radius: 6px; border: 1.5px solid #1e3a8a; margin-right: 12px;"></span>
         <button class="btn btn-secondary" onclick="openGuide()">📖 ご利用ガイド</button>
-        <button class="btn btn-secondary" id="adminViewBtn" onclick="openAdminPanel()">⚙ 管理者同期</button>
+        <button class="btn btn-secondary" id="adminViewBtn" onclick="openAdminPanel()" style="display: none;">⚙ 管理者同期</button>
         <button class="btn btn-danger" id="logoutBtn" style="display: none;" onclick="logout()">ログアウト</button>
       </div>
     </header>
@@ -1011,7 +1011,7 @@
       // acoop-ai.github.io はスマレコと同一オリジンのため、実績のある同じ Client ID を共用する
       GOOGLE_CLIENT_ID: '1072945615483-74jadmaet56chvhkfh2cpt4ae9dvh140.apps.googleusercontent.com',
       ALLOWED_DOMAINS: ['jaz-acoop.co.jp', 'jaz-acoop1.jp', 'jaz-acoop2.jp', 'jaz-acoop3.jp'],
-      APP_VERSION: '2.00'
+      APP_VERSION: '2.07'
     };
 
     // ===== GIS OAuth2 トークン管理 =====
@@ -1169,11 +1169,19 @@
       var disp = document.getElementById('userEmailDisplay');
       if (disp) { disp.textContent = '👤 ' + email; disp.style.display = 'inline'; }
       showPanel('loginPanel');
-      // セッション開始をサーバーに記録（接続者ログ）。失敗しても画面は止めない。
+      // セッション開始をサーバーに記録し、本部(HQ)判定を受け取って管理UIの表示を制御する。
       callGAS('login').then(function (r) {
         if (r && r.version) console.log('API version:', r.version);
-      }).catch(function (e) { console.warn('login log failed:', e); });
+        applyHQPermission_(!!(r && r.isHQ));
+      }).catch(function (e) { console.warn('login log failed:', e); applyHQPermission_(false); });
       loadInitialData_();
+    }
+
+    // 本部(jaz-acoop.co.jp)以外は「管理者同期(取込)」ボタンを隠す＝取込は本部のみ
+    function applyHQPermission_(isHQ) {
+      window.__isHQ = isHQ;
+      var btn = document.getElementById('adminViewBtn');
+      if (btn) btn.style.display = isHQ ? 'inline-flex' : 'none';
     }
 
     // ===== GAS API 通信層（fetch版） =====
@@ -1226,6 +1234,15 @@
       showPanel('authPanel');
     };
 
+    // 開発モード判定: URLに ?debug=1 が付いている時だけ診断パネルを出す（普段は隠す）
+    function isDevMode_() {
+      try {
+        if (/[?&]debug=1/.test(location.search)) { localStorage.setItem('honbu_dev', '1'); return true; }
+        if (/[?&]debug=0/.test(location.search)) { localStorage.removeItem('honbu_dev'); return false; }
+        return localStorage.getItem('honbu_dev') === '1';
+      } catch (e) { return /[?&]debug=1/.test(location.search); }
+    }
+
     // 認証後の初期データ読み込み（店舗一覧＋診断情報）
     async function loadInitialData_() {
       showLoading("店舗一覧を読み込んでいます...");
@@ -1235,11 +1252,14 @@
         allStores = stores || {};
         fillStoreOptions(document.getElementById("storeSelect"), allStores);
         fillStoreOptions(document.getElementById("headerStoreSelect"), allStores);
+        // 前回この端末で使った店舗を復元（店舗ごとのUI設定を引き継ぐ第一歩）
+        restoreLastStore_();
       } catch (err) {
         hideLoading();
         showToast("店舗一覧の取得に失敗しました: " + err.message, "error");
       }
-      // システム診断デバッグ情報（失敗しても本処理を妨げない）
+      // システム診断デバッグ情報は【開発モード(?debug=1)のときだけ】表示（普段は隠す・APIも呼ばない）
+      if (!isDevMode_()) return;
       try {
         var debug = await callGAS('getDebugInfo');
         var debugDiv = document.getElementById("debugSection");
@@ -1284,6 +1304,7 @@
 
       currentStoreCode = code;
       currentStoreName = select.options[select.selectedIndex].textContent.split(" : ")[1];
+      rememberLastStore_(code);
 
       // ダッシュボード上部の店舗切替セレクトを現在の店舗に同期
       var hsel = document.getElementById("headerStoreSelect");
@@ -1297,6 +1318,19 @@
       loadDashboardData();
     }
 
+    // この端末で最後に使った店舗を記憶／復元（店舗ごとのUI設定＝ピン留め等はサーバー(store_settings)で店舗別に保持）
+    function rememberLastStore_(code) {
+      try { localStorage.setItem('honbu_last_store', code); } catch (e) {}
+    }
+    function restoreLastStore_() {
+      try {
+        var code = localStorage.getItem('honbu_last_store');
+        if (!code || !allStores[code]) return;
+        var lsel = document.getElementById("storeSelect");
+        if (lsel) lsel.value = code;
+      } catch (e) {}
+    }
+
     /**
      * ログアウトせずに、メイン画面のまま別店舗へ切り替える
      */
@@ -1307,6 +1341,7 @@
 
       currentStoreCode = code;
       currentStoreName = hsel.options[hsel.selectedIndex].textContent.split(" : ")[1];
+      rememberLastStore_(code);
 
       // 並べ替え状態は店舗ごとにリセット
       clickedDateSort = null;
@@ -1354,6 +1389,11 @@
      * 管理者同期画面を開く
      */
     function openAdminPanel() {
+      // 取込・管理は本部(jaz-acoop.co.jp)のみ（ボタン非表示に加え、直接呼び出しにも念のためのガード）
+      if (!window.__isHQ) {
+        showToast("データ取込・管理は本部（jaz-acoop.co.jp）アカウントのみ利用できます。", "warning");
+        return;
+      }
       showPanel("adminPanel");
       scanDriveFiles();
     }
@@ -1431,6 +1471,7 @@
       }
       
       monthsList.forEach(function(m) {
+        if (!/^\d{4}-\d{2}$/.test(m)) return; // 壊れた月キーは対象月に出さない（防御）
         var opt = document.createElement("option");
         opt.value = m;
         var parts = m.split('-');
@@ -1456,9 +1497,9 @@
 
       var supplierOrder = [];
       rawOrders.forEach(function(o) {
-        // 選択中の対象月に含まれる取引先だけを候補にする（＝月を切り替えると取引先も追随する）
-        var recFileMonth = fileMonths[o.fileName] || "";
-        if (monthVal && recFileMonth !== monthVal) return;
+        // batch月(取込バッチが属する月)基準。選択中の月のバッチの取引先だけ候補に載せる
+        var recMonth = o.batchMonth || "";
+        if (monthVal && recMonth !== monthVal) return;
         if (o.supplier && supplierOrder.indexOf(o.supplier) === -1) {
           supplierOrder.push(o.supplier);
         }
@@ -1690,8 +1731,10 @@
       var searchVal = document.getElementById("searchFilter").value.toLowerCase();
       
       var filteredRecords = rawOrders.filter(function(o) {
-        var recFileMonth = fileMonths[o.fileName] || "";
-        var matchMonth = !monthVal || recFileMonth === monthVal;
+        // batch月(取込バッチが属する月)のタブに、そのバッチの中身を実日付のまま表示する。
+        // （9月発注書に混じる8月31日・10月1日等の隣月日付も、9月タブ内にそのまま出す）
+        var recMonth = o.batchMonth || "";
+        var matchMonth = !monthVal || recMonth === monthVal;
         var matchSup = !supplierVal || o.supplier === supplierVal;
         var matchSearch = !searchVal || 
                           o.productName.toLowerCase().indexOf(searchVal) !== -1 || 
@@ -2075,19 +2118,67 @@
       var select = document.getElementById("driveFileSelect");
       var fileId = select.value;
       var dept = document.getElementById("importDept").value;
-      
+
       if (!fileId) {
         showToast("同期するファイルを選択してください。", "warning");
         return;
       }
-      
-      showLoading("発注書を解析・同期中... (数秒かかります)");
+      await doImport(fileId, dept, false);
+    }
 
+    // 実際の同期処理。confirmOverwrite=false で呼ぶと、同月が既に取込済みなら確認を挟む。
+    async function doImport(fileId, dept, confirmOverwrite) {
+      showLoading("発注書を解析・同期中... (数秒かかります)");
       try {
-        var res = await callGAS('parseSpreadsheetById', { fileId: fileId, department: dept });
+        var res = await callGAS('parseSpreadsheetById', { fileId: fileId, department: dept, confirmOverwrite: confirmOverwrite });
         hideLoading();
+
+        // 同じ月が既に取込済み → 上書き確認
+        if (res && res.needsConfirm) {
+          var monthLabel = res.batchMonth ? res.batchMonth.replace("-", "年") + "月" : "この月";
+          if (confirm("【" + monthLabel + "】は既に取込済みです（" + res.existingCount + "件）。\n最新の内容で上書き更新しますか？\n※他の月のデータには影響しません。")) {
+            await doImport(fileId, dept, true);
+          } else {
+            showToast("取込を中止しました（既存データは変更していません）。", "warning");
+          }
+          return;
+        }
+
+        // 不正日付アラート（取り込めなかった日付を明示。これらの行は取り込まれていない）
+        if (res && res.invalidDates && res.invalidDates.length > 0) {
+          var lines = res.invalidDates.slice(0, 12).map(function(x) {
+            return "・取引先「" + x.supplier + "」: \"" + x.rawValue + "\"（元シート " + x.row + "行目）";
+          }).join("\n");
+          var more = res.invalidDates.length > 12 ? "\n…ほか " + (res.invalidDates.length - 12) + "件" : "";
+          alert("⚠️ 取り込めない日付が " + res.invalidDates.length + "件ありました。\n該当行は取り込んでいません。元データの日付を修正して再取込してください。\n\n" + lines + more);
+        }
+
+        // 除外シートの通知（非表示シート／当月以外の取引先シートは取り込まない）
+        var fmtExcluded = function(list) {
+          return list.map(function(x){
+            var tag = x.reason === "非表示" ? "非表示" : ("別月 " + x.month);
+            return x.supplier + "（" + tag + "）";
+          }).join("、");
+        };
+        var exclNote = "";
+        if (res && res.excludedSheets && res.excludedSheets.length > 0) {
+          exclNote = " ／ 取り込まなかったシート: " + fmtExcluded(res.excludedSheets);
+        }
+
+        // 有効データ無し（日付エラー・全タブが別月/非表示 等が原因）
+        if (res && res.success === false) {
+          if (res.excludedSheets && res.excludedSheets.length > 0) {
+            showToast("取り込める当月シートがありませんでした。除外: " + fmtExcluded(res.excludedSheets), "error");
+          } else {
+            showToast("有効な発注データがありませんでした（日付の入力誤りが原因の可能性）。元データを修正して再取込してください。", "error");
+          }
+          return;
+        }
+
         if (res.missingNames && res.missingNames.length > 0) {
-          showToast("同期完了(" + res.recordCount + "件)。ただし商品名を取得できなかったコードが " + res.missingNames.length + "件あります → " + res.missingNames.join(", ") + "（元ファイルの見出し構造を確認してください）", "warning");
+          showToast("同期完了(" + res.recordCount + "件)。ただし商品名を取得できなかったコードが " + res.missingNames.length + "件あります → " + res.missingNames.join(", ") + "（元ファイルの見出し構造を確認してください）" + exclNote, "warning");
+        } else if (exclNote) {
+          showToast("同期完了！ '" + res.fileName + "' から " + res.recordCount + " レコードをインポートしました。" + exclNote, "warning");
         } else {
           showToast("同期完了！ '" + res.fileName + "' から " + res.recordCount + " レコードをインポートしました。", "success");
         }
