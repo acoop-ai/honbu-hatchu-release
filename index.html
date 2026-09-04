@@ -3,7 +3,7 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
-  <title>本部発注切り替えアプリ【惣菜テスト版】</title>
+  <title>テンチャ（本部発注変換アプリ）</title>
   <!-- Google Fonts (Outfit & Noto Sans JP) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -734,9 +734,9 @@
     <!-- Header -->
     <header>
       <div class="brand">
-        <div class="brand-logo">本部発注切り替えアプリ</div>
-        <div class="system-badge" style="background:#fef3c7;border-color:#b45309;color:#92400e;">惣菜テスト版</div>
-        <div class="system-badge" id="versionBadge">GitHub版 v2.07</div>
+        <div class="brand-logo">テンチャ</div>
+        <div class="system-badge" style="font-weight:700;">本部発注変換アプリ</div>
+        <div class="system-badge" id="versionBadge">v2.08</div>
       </div>
       <div class="nav-actions">
         <span id="userEmailDisplay" title="接続中のアカウント" style="font-size: 11px; color: #475569; margin-right: 10px; display: none;"></span>
@@ -752,8 +752,8 @@
     <!-- Screen 0: Google 4ドメイン認証 -->
     <div class="panel active" id="authPanel">
       <div class="login-box">
-        <div class="login-logo">本部発注切り替えアプリ</div>
-        <div style="display:inline-block; font-size:11px; font-weight:700; background:#fef3c7; color:#92400e; border:1.5px solid #b45309; border-radius:6px; padding:2px 8px; margin-bottom:10px;">惣菜テスト版</div>
+        <div class="login-logo">テンチャ</div>
+        <div style="display:inline-block; font-size:11px; font-weight:700; background:#eff6ff; color:#1e40af; border:1.5px solid #3b82f6; border-radius:6px; padding:2px 8px; margin-bottom:10px;">本部発注変換アプリ</div>
         <div class="login-subtitle">ご利用には会社アカウントでのログインが必要です。<br>（jaz-acoop.co.jp / jaz-acoop1.jp / jaz-acoop2.jp / jaz-acoop3.jp）</div>
 
         <button class="btn btn-primary" id="googleLoginBtn" style="width: 100%; justify-content: center; padding: 12px;" onclick="startGoogleLogin()">
@@ -768,8 +768,8 @@
     <!-- Screen 1: Login View (店舗選択) -->
     <div class="panel" id="loginPanel">
       <div class="login-box">
-        <div class="login-logo">本部発注切り替えアプリ</div>
-        <div style="display:inline-block; font-size:11px; font-weight:700; background:#fef3c7; color:#92400e; border:1.5px solid #b45309; border-radius:6px; padding:2px 8px; margin-bottom:10px;">惣菜テスト版</div>
+        <div class="login-logo">テンチャ</div>
+        <div style="display:inline-block; font-size:11px; font-weight:700; background:#eff6ff; color:#1e40af; border:1.5px solid #3b82f6; border-radius:6px; padding:2px 8px; margin-bottom:10px;">本部発注変換アプリ</div>
         <div class="login-subtitle">仕入先ごとの本部発注書を、店舗別・日付別のわかりやすい一覧に切り替えて確認できます。ご自身の店舗を選んで接続してください。</div>
 
         <div class="form-group">
@@ -787,11 +787,13 @@
           📖 ご利用ガイド
         </button>
 
-        <!-- Debug Section (v1.50 Diagnostic Panel) -->
-        <div id="debugSection" style="margin-top: 30px; border: 1px dashed #ef4444; padding: 15px; background: #fff5f5; border-radius: 8px; text-align: left; font-size: 11px; font-family: monospace; display: none;">
-          <h4 style="color: #b91c1c; margin-bottom: 8px; font-size: 12px; font-weight: bold;">🔍 システム診断情報（サーバー実測値）</h4>
-          <div id="debugContent" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto;"></div>
-        </div>
+        <!-- 開発者向け診断（既定は畳む。開かなければ内容は見えず、APIも呼ばない） -->
+        <details id="devPanel" style="margin-top: 30px; text-align: left;" ontoggle="onDevPanelToggle_(this)">
+          <summary style="cursor: pointer; font-size: 11px; color: #94a3b8; user-select: none;">開発者向け診断（クリックで開く）</summary>
+          <div style="border: 1px dashed #cbd5e1; padding: 15px; background: #f8fafc; border-radius: 8px; font-size: 11px; font-family: monospace; margin-top: 8px;">
+            <div id="debugContent" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto; color: #475569;">開くと診断情報を読み込みます…</div>
+          </div>
+        </details>
       </div>
     </div>
 
@@ -942,45 +944,8 @@
     </div>
   </div>
 
-  <!-- Modal: ご利用ガイド -->
-  <div class="modal" id="guideModal">
-    <div class="modal-content" style="width: 600px; max-width: 92vw;">
-      <div class="modal-header">📖 ご利用ガイド（本部発注切り替えアプリ）</div>
-      <div class="modal-body" style="max-height: 65vh; overflow-y: auto; font-size: 13px; line-height: 1.7;">
-        <p style="font-weight:700; margin-bottom:6px;">■ このアプリでできること</p>
-        <p style="margin-bottom:12px;">本部から配布された発注書（仕入先ごとのシート）を、<b>店舗ごと・日付ごと</b>の見やすい一覧表に切り替えて確認できます。</p>
-
-        <p style="font-weight:700; margin-bottom:6px;">■ 基本の使い方（店舗の方）</p>
-        <ol style="padding-left:20px; margin-bottom:12px;">
-          <li><b>店舗を選んで接続</b>：入口で自店舗を選び「選択した店舗で接続」。</li>
-          <li><b>一覧の見方</b>：縦が「お届け日」、横が「商品」（規格・原価つき）。数字が発注数です。右端は日別の原価合計。</li>
-          <li><b>店舗の切替</b>：画面上部の「店舗（切替）」で、ログアウトせず別店舗に切り替えられます。</li>
-          <li><b>絞り込み</b>：「対象月」「取引先」「商品検索」で表示を絞れます（対象月を変えると取引先の候補もその月の内容に変わります）。</li>
-        </ol>
-
-        <p style="font-weight:700; margin-bottom:6px;">■ 便利な機能</p>
-        <ul style="padding-left:20px; margin-bottom:12px;">
-          <li><b>📍 ピン留め</b>：商品ヘッダの📍で、その商品を最左列に固定できます（定番品の確認に）。</li>
-          <li><b>📝 メモ</b>：数量セルを<b>ダブルクリック</b>すると、その商品×日付にメモを残せます（例：チラシ特売、イベント売込）。</li>
-          <li><b>🔔 アラート</b>：いつもより極端に多い発注を自動で検知し、誤入力・過剰発注の気づきになります。</li>
-          <li><b>🌟 よく見る商品</b>：よく確認する商品が自動で学習・表示されます。</li>
-          <li><b>📊 スプシ書き出し</b>：今表示中の内容を、罫線・合計つきのGoogleスプレッドシートに出力できます。</li>
-        </ul>
-
-        <p style="font-weight:700; margin-bottom:6px;">■ 管理者の方（データ取込）</p>
-        <ul style="padding-left:20px; margin-bottom:12px;">
-          <li>「⚙ 管理者同期」→ 取り込む部門と発注書ファイル（Googleスプレッドシート形式）を選び「発注データを同期」。</li>
-          <li>同一ファイルの再取込は上書き（重複しません）。月違いのファイルは月別履歴として追加されます。</li>
-          <li>取込時に商品名を取得できなかった商品があれば、その商品コードを警告で表示します。</li>
-        </ul>
-
-        <p style="font-size:12px; color:#64748b;">※このアプリは会社指定ドメイン（jaz-acoop.co.jp ほか）のアカウントのみ利用できます。ご不明点は本部担当までお問い合わせください。</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" onclick="closeGuide()">閉じる</button>
-      </div>
-    </div>
-  </div>
+  <!-- ご利用ガイドは GitHub に置かず、GAS ページ（?page=guide）を新規タブで開く方針のため
+       ここにモーダルは持たない（openGuide() が GAS のガイドURLを開く）。 -->
 
   <!-- Toast Notification -->
   <div class="toast" id="toast"></div>
@@ -1011,7 +976,7 @@
       // acoop-ai.github.io はスマレコと同一オリジンのため、実績のある同じ Client ID を共用する
       GOOGLE_CLIENT_ID: '1072945615483-74jadmaet56chvhkfh2cpt4ae9dvh140.apps.googleusercontent.com',
       ALLOWED_DOMAINS: ['jaz-acoop.co.jp', 'jaz-acoop1.jp', 'jaz-acoop2.jp', 'jaz-acoop3.jp'],
-      APP_VERSION: '2.07'
+      APP_VERSION: '2.08'
     };
 
     // ===== GIS OAuth2 トークン管理 =====
@@ -1234,13 +1199,20 @@
       showPanel('authPanel');
     };
 
-    // 開発モード判定: URLに ?debug=1 が付いている時だけ診断パネルを出す（普段は隠す）
-    function isDevMode_() {
+    // 開発者向け診断パネル：既定は畳む。開いたときだけ getDebugInfo を1回取得する（運用中は見えない）。
+    var devInfoLoaded_ = false;
+    async function onDevPanelToggle_(el) {
+      if (!el || !el.open || devInfoLoaded_) return;
+      devInfoLoaded_ = true;
+      var c = document.getElementById('debugContent');
+      if (c) c.textContent = '診断情報を取得中…';
       try {
-        if (/[?&]debug=1/.test(location.search)) { localStorage.setItem('honbu_dev', '1'); return true; }
-        if (/[?&]debug=0/.test(location.search)) { localStorage.removeItem('honbu_dev'); return false; }
-        return localStorage.getItem('honbu_dev') === '1';
-      } catch (e) { return /[?&]debug=1/.test(location.search); }
+        var debug = await callGAS('getDebugInfo');
+        if (c) c.textContent = JSON.stringify(debug, null, 2);
+      } catch (e) {
+        devInfoLoaded_ = false;
+        if (c) c.textContent = '取得に失敗しました: ' + (e && e.message ? e.message : e);
+      }
     }
 
     // 認証後の初期データ読み込み（店舗一覧＋診断情報）
@@ -1258,17 +1230,7 @@
         hideLoading();
         showToast("店舗一覧の取得に失敗しました: " + err.message, "error");
       }
-      // システム診断デバッグ情報は【開発モード(?debug=1)のときだけ】表示（普段は隠す・APIも呼ばない）
-      if (!isDevMode_()) return;
-      try {
-        var debug = await callGAS('getDebugInfo');
-        var debugDiv = document.getElementById("debugSection");
-        var debugContent = document.getElementById("debugContent");
-        if (debugDiv && debugContent) {
-          debugDiv.style.display = "block";
-          debugContent.textContent = JSON.stringify(debug, null, 2);
-        }
-      } catch (e) {}
+      // 診断情報は開発者向けパネルを「開いたとき」だけ取得する（onDevPanelToggle_）。既定は畳んで非表示。
     }
 
     /**
@@ -1329,6 +1291,47 @@
         var lsel = document.getElementById("storeSelect");
         if (lsel) lsel.value = code;
       } catch (e) {}
+    }
+
+    // ── 店舗ごとのフィルタ状態（対象月・取引先・商品検索）を端末に記憶／復元 ──
+    // 「最終利用した店舗のフィルタ状態を維持」。店舗を切り替えると、その店舗で前回使った絞り込みが戻る。
+    function filterStateKey_() {
+      return currentStoreCode ? ('honbu_filter_' + currentStoreCode) : '';
+    }
+    function saveFilterState_() {
+      var key = filterStateKey_();
+      if (!key) return;
+      try {
+        localStorage.setItem(key, JSON.stringify({
+          month:    (document.getElementById('monthFilter')    || {}).value || '',
+          supplier: (document.getElementById('supplierFilter') || {}).value || '',
+          search:   (document.getElementById('searchFilter')   || {}).value || ''
+        }));
+      } catch (e) {}
+    }
+    // buildMonthFilter / buildSupplierFilter の後に呼ぶ。保存値が現在の候補に在れば適用する。
+    function restoreFilterState_() {
+      var key = filterStateKey_();
+      if (!key) return;
+      var st;
+      try { st = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { st = null; }
+      if (!st) return;
+      var mf = document.getElementById('monthFilter');
+      if (mf && st.month) {
+        for (var i = 0; i < mf.options.length; i++) {
+          if (mf.options[i].value === st.month) { mf.value = st.month; break; }
+        }
+      }
+      // 月が変わり得るので取引先候補を組み直してから取引先を復元
+      buildSupplierFilter();
+      var sf = document.getElementById('supplierFilter');
+      if (sf && st.supplier) {
+        for (var j = 0; j < sf.options.length; j++) {
+          if (sf.options[j].value === st.supplier) { sf.value = st.supplier; break; }
+        }
+      }
+      var srch = document.getElementById('searchFilter');
+      if (srch && typeof st.search === 'string') srch.value = st.search;
     }
 
     /**
@@ -1449,6 +1452,7 @@
 
         buildMonthFilter();
         buildSupplierFilter();
+        restoreFilterState_();   // 店舗ごとの前回フィルタ状態を復元（月→取引先→検索）
         updateAlertsBadge();
         buildGrid();
       } catch (err) {
@@ -1522,6 +1526,7 @@
      */
     function onMonthChange() {
       buildSupplierFilter();
+      saveFilterState_();
       buildGrid();
     }
 
@@ -1669,13 +1674,16 @@
     }
 
     /**
-     * ご利用ガイドの開閉（入口・アプリ内の両方から呼ぶ）
+     * ご利用ガイド：GitHub には置かず GAS ページ（?page=guide）を新規タブで開く。
      */
     function openGuide() {
-      document.getElementById("guideModal").style.display = "flex";
-    }
-    function closeGuide() {
-      document.getElementById("guideModal").style.display = "none";
+      var base = CONFIG.GAS_URL || '';
+      if (!base || base.indexOf('__PASTE') === 0) {
+        showToast("ガイドURL未設定です（GASのデプロイ後に有効になります）。", "warning");
+        return;
+      }
+      var u = base + (base.indexOf('?') === -1 ? '?' : '&') + 'page=guide';
+      window.open(u, '_blank', 'noopener');
     }
 
     function getQtyOnProduct(date, productCode) {
@@ -1822,6 +1830,7 @@
      * フィルタ適用
      */
     function applyFilters() {
+      saveFilterState_();
       buildGrid();
     }
 
