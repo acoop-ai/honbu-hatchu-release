@@ -1139,7 +1139,7 @@
       loadInitialData_();
     }
 
-    // 本部(jaz-acoop.co.jp)以外は「管理者同期(取込)」ボタンを隠す＝取込は本部のみ
+    // 本部(jaz-acoop.co.jp)＋本部相当として登録された個人以外は「管理者同期(取込)」ボタンを隠す
     function applyHQPermission_(isHQ) {
       window.__isHQ = isHQ;
       var btn = document.getElementById('adminViewBtn');
@@ -1389,9 +1389,9 @@
      * 管理者同期画面を開く
      */
     function openAdminPanel() {
-      // 取込・管理は本部(jaz-acoop.co.jp)のみ（ボタン非表示に加え、直接呼び出しにも念のためのガード）
+      // 取込・管理は本部(jaz-acoop.co.jp)＋許可された担当者のみ（ボタン非表示に加え、直接呼び出しにも念のためのガード）
       if (!window.__isHQ) {
-        showToast("データ取込・管理は本部（jaz-acoop.co.jp）アカウントのみ利用できます。", "warning");
+        showToast("データ取込・管理は本部（jaz-acoop.co.jp）アカウント、または許可された担当者のみ利用できます。", "warning");
         return;
       }
       showPanel("adminPanel");
