@@ -941,8 +941,18 @@
     </div>
   </div>
 
-  <!-- ご利用ガイドは GitHub に置かず、GAS ページ（?page=guide）を新規タブで開く方針のため
-       ここにモーダルは持たない（openGuide() が GAS のガイドURLを開く）。 -->
+  <!-- Modal: ご利用ガイド（入れ物のみ。本文はGASのGuide.htmlから認証付きで取得して差し込む） -->
+  <div class="modal" id="guideModal">
+    <div class="modal-content" style="width: 780px; max-width: 94vw;">
+      <div class="modal-header">📖 ご利用ガイド（テンチャ）</div>
+      <div class="modal-body" id="guideBody" style="max-height: 70vh; overflow-y: auto; font-size: 13px; line-height: 1.7;">
+        <p style="color:#64748b;">ご利用ガイドを読み込んでいます…</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeGuide()">閉じる</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notification -->
   <div class="toast" id="toast"></div>
@@ -1673,14 +1683,28 @@
     /**
      * ご利用ガイド：GitHub には置かず GAS ページ（?page=guide）を新規タブで開く。
      */
-    function openGuide() {
-      var base = CONFIG.GAS_URL || '';
-      if (!base || base.indexOf('__PASTE') === 0) {
-        showToast("ガイドURL未設定です（GASのデプロイ後に有効になります）。", "warning");
-        return;
+    // 本文はサーバー（GASの Guide.html＝唯一の原本）から認証付きで取得する。
+    // 公開リポで配信されるこのHTMLには本文を一切置かない。
+    var _guideCache = null;
+    async function openGuide() {
+      var modal = document.getElementById("guideModal");
+      var body = document.getElementById("guideBody");
+      if (!modal || !body) return;
+      modal.style.display = "flex";
+      if (_guideCache) { body.innerHTML = _guideCache; return; }
+      body.innerHTML = '<p style="color:#64748b;">ご利用ガイドを読み込んでいます…</p>';
+      try {
+        var g = await callGAS('getGuide');
+        _guideCache = (g && g.html) || '';
+        body.innerHTML = _guideCache;
+      } catch (e) {
+        body.innerHTML = '<p style="color:#b91c1c;">ご利用ガイドを取得できませんでした：'
+          + String((e && e.message) || e) + '<br>時間をおいて再度お試しください。</p>';
       }
-      var u = base + (base.indexOf('?') === -1 ? '?' : '&') + 'page=guide';
-      window.open(u, '_blank', 'noopener');
+    }
+    function closeGuide() {
+      var m = document.getElementById("guideModal");
+      if (m) m.style.display = "none";
     }
 
     function getQtyOnProduct(date, productCode) {
