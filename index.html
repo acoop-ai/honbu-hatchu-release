@@ -735,7 +735,7 @@
     <header>
       <div class="brand">
         <div class="brand-logo">テンチャク<span style="font-size:13px; font-weight:700; color:var(--text-muted);">（本部発注変換アプリ）</span></div>
-        <div class="system-badge" id="versionBadge">v2.08</div>
+        <div class="system-badge" id="versionBadge">v2.09</div>
       </div>
       <div class="nav-actions">
         <span id="userEmailDisplay" title="接続中のアカウント" style="font-size: 11px; color: #475569; margin-right: 10px; display: none;"></span>
@@ -832,7 +832,7 @@
           <div class="filter-actions">
             <button class="btn btn-secondary" id="alertsBtn" onclick="openAlertsModal()">🔔 アラート</button>
             <button class="btn btn-secondary" id="favoritesBtn" onclick="openFavoritesModal()">🌟 よく見る商品</button>
-            <button class="btn btn-primary" onclick="exportToSpreadsheet()">📊 スプシ書き出し</button>
+            <button class="btn btn-primary" onclick="exportToExcel()">📊 Excel保存</button>
           </div>
         </div>
         
@@ -985,7 +985,7 @@
       // acoop-ai.github.io はスマレコと同一オリジンのため、実績のある同じ Client ID を共用する
       GOOGLE_CLIENT_ID: '1072945615483-74jadmaet56chvhkfh2cpt4ae9dvh140.apps.googleusercontent.com',
       ALLOWED_DOMAINS: ['jaz-acoop.co.jp', 'jaz-acoop1.jp', 'jaz-acoop2.jp', 'jaz-acoop3.jp'],
-      APP_VERSION: '2.08'
+      APP_VERSION: '2.09'
     };
 
     // ===== GIS OAuth2 トークン管理 =====
@@ -2117,30 +2117,226 @@
     }
 
     /**
-     * Googleスプレッドシートへのエクスポート
+     * 表示中の表を Excel ファイル（.xlsx）にして、その場で保存する。
+     * 以前は本部のドライブにスプレッドシートを作り「リンクを知っている全員」で公開して開いていた。
+     * 店舗アカウントは許可申請の画面になり、会社の設定次第では URL だけで誰でも見られた。
+     * 表の中身は画面が既に持っているので、ブラウザの中でファイルにする（ドライブには何も作らない）。
      */
-    async function exportToSpreadsheet() {
-      showLoading("スプレッドシートを生成中...");
-      var dept = document.getElementById("deptSelect").value;
-
-      try {
-        var res = await callGAS('exportToGoogleSheets', {
-          storeCode: currentStoreCode,
-          department: dept,
-          dateHeaders: dateHeaders,
-          productHeaders: productHeaders,
-          gridMatrix: gridMatrix,
-          storeName: currentStoreName
-        });
-        hideLoading();
-        showToast("スプシの書き出しに成功しました！", "success");
-        if (res.url) {
-          window.open(res.url, "_blank");
-        }
-      } catch (err) {
-        hideLoading();
-        showToast("エクスポートに失敗しました: " + err.message, "error");
+    function exportToExcel() {
+      if (!dateHeaders.length || !productHeaders.length) {
+        showToast("保存する発注データがありません", "warning");
+        return;
       }
+      var dept = document.getElementById("deptSelect").value || "惣菜";
+      var d = new Date();
+      var ymd = d.getFullYear() + ("0" + (d.getMonth() + 1)).slice(-2) + ("0" + d.getDate()).slice(-2);
+      var fileName = (dept + "部門_店舗別発注確認書_" + currentStoreName + "_" + ymd).replace(/[\\\/:*?"<>|]/g, "_") + ".xlsx";
+      try {
+        var blob = buildOrderXlsx_(dateHeaders, productHeaders, gridMatrix);
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function() { URL.revokeObjectURL(a.href); }, 60000);
+        showToast("Excelファイルを保存しました（ダウンロードに入ります）", "success");
+      } catch (err) {
+        showToast("Excelファイルを作れませんでした: " + err.message, "error");
+        return;
+      }
+      // 利用の記録だけサーバーへ送る（失敗しても保存には影響させない）
+      callGAS('logExport', { storeCode: currentStoreCode, department: dept }).catch(function() {});
+    }
+
+    /**
+     * 発注の表を .xlsx（Excel の形式）にする。外部の部品は使わない。
+     * 見た目は旧スプシ書き出しと同じ: 見出し紺・合計行グレー・罫線・原価は円表示・1行目とA列を固定。
+     */
+    function buildOrderXlsx_(dates, products, matrix) {
+      function esc(s) {
+        return String(s == null ? "" : s)
+          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+          .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      }
+      function colName(i) {  // 0 → A, 26 → AA
+        var s = "", n = i + 1;
+        while (n > 0) { var m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); }
+        return s;
+      }
+      function textCell(ref, v, st) {
+        return '<c r="' + ref + '" s="' + st + '" t="inlineStr"><is><t xml:space="preserve">' + esc(v) + '</t></is></c>';
+      }
+      function numCell(ref, v, st) {  // 0 は旧版と同じく空欄（罫線は残す）
+        return v > 0 ? '<c r="' + ref + '" s="' + st + '"><v>' + v + '</v></c>' : '<c r="' + ref + '" s="' + st + '"/>';
+      }
+      function textWidth(s) {  // 全角は2・半角は1で数える（列幅の目安）
+        var w = 0;
+        for (var i = 0; i < s.length; i++) w += s.charCodeAt(i) > 0xFF ? 2 : 1;
+        return w;
+      }
+
+      // 列幅と見出しの高さ（旧版: 列幅を中身に合わせ、100〜250px に収める）
+      var cols = ['<col min="1" max="1" width="14" customWidth="1"/>'];
+      var headerLines = 2;
+      products.forEach(function(p, c) {
+        var nameW = textWidth(String(p.name || "")), specW = textWidth("(" + (p.specs || "") + ")");
+        var width = Math.min(35, Math.max(14, Math.max(nameW, specW) + 2));
+        var lines = Math.ceil(nameW / (width - 1)) + Math.ceil(specW / (width - 1));
+        headerLines = Math.max(headerLines, lines);
+        cols.push('<col min="' + (c + 2) + '" max="' + (c + 2) + '" width="' + width + '" customWidth="1"/>');
+      });
+      var lastCol = products.length + 2;
+      cols.push('<col min="' + lastCol + '" max="' + lastCol + '" width="18" customWidth="1"/>');
+
+      // 表の中身（旧 exportToGoogleSheets と同じ計算）
+      var rows = [];
+      var head = [textCell("A1", "お届け日", 1)];
+      products.forEach(function(p, c) {
+        head.push(textCell(colName(c + 1) + "1", (p.name || "") + "\n(" + (p.specs || "") + ")", 1));
+      });
+      head.push(textCell(colName(products.length + 1) + "1", "日別合計(原価額)", 1));
+      rows.push('<row r="1" ht="' + (headerLines * 18.75 + 4) + '" customHeight="1">' + head.join("") + '</row>');
+
+      var sums = products.map(function() { return 0; });
+      var overallCost = 0;
+      dates.forEach(function(date, r) {
+        var rn = r + 2, cells = [textCell("A" + rn, date, 2)], dailyCost = 0;
+        products.forEach(function(p, c) {
+          var qty = Number(matrix[r][c]) || 0;
+          cells.push(numCell(colName(c + 1) + rn, qty, 3));
+          if (qty > 0) { dailyCost += qty * (p.cost || 0); sums[c] += qty; }
+        });
+        cells.push(numCell(colName(products.length + 1) + rn, dailyCost, 4));
+        rows.push('<row r="' + rn + '">' + cells.join("") + '</row>');
+      });
+      var tn = dates.length + 2, total = [textCell("A" + tn, "期間合計", 5)];
+      products.forEach(function(p, c) {
+        total.push(numCell(colName(c + 1) + tn, sums[c], 6));
+        overallCost += sums[c] * (p.cost || 0);
+      });
+      total.push(numCell(colName(products.length + 1) + tn, overallCost, 7));
+      rows.push('<row r="' + tn + '">' + total.join("") + '</row>');
+
+      var NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"';
+      var NS_R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+      var XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+      var FONT = '<name val="游ゴシック"/><family val="3"/><charset val="128"/>';
+      var BORDER = '<color rgb="FF475569"/>';
+      var files = {
+        "[Content_Types].xml": XML +
+          '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+          '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+          '<Default Extension="xml" ContentType="application/xml"/>' +
+          '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
+          '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
+          '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' +
+          '</Types>',
+        "_rels/.rels": XML +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/>' +
+          '</Relationships>',
+        "xl/workbook.xml": XML +
+          '<workbook ' + NS + ' ' + NS_R + '><sheets><sheet name="時系列発注書" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        "xl/_rels/workbook.xml.rels": XML +
+          '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+          '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>' +
+          '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+          '</Relationships>',
+        // 書式の番号: 1見出し 2日付 3数量 4日別原価 5合計の見出し 6合計の数量 7合計の原価
+        "xl/styles.xml": XML +
+          '<styleSheet ' + NS + '>' +
+          '<numFmts count="1"><numFmt numFmtId="164" formatCode="&quot;￥&quot;#,##0"/></numFmts>' +
+          '<fonts count="3">' +
+            '<font><sz val="11"/>' + FONT + '</font>' +
+            '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/>' + FONT + '</font>' +
+            '<font><b/><sz val="11"/>' + FONT + '</font>' +
+          '</fonts>' +
+          '<fills count="4">' +
+            '<fill><patternFill patternType="none"/></fill>' +
+            '<fill><patternFill patternType="gray125"/></fill>' +
+            '<fill><patternFill patternType="solid"><fgColor rgb="FF1E3A8A"/><bgColor indexed="64"/></patternFill></fill>' +
+            '<fill><patternFill patternType="solid"><fgColor rgb="FFCBD5E1"/><bgColor indexed="64"/></patternFill></fill>' +
+          '</fills>' +
+          '<borders count="2">' +
+            '<border><left/><right/><top/><bottom/><diagonal/></border>' +
+            '<border><left style="thin">' + BORDER + '</left><right style="thin">' + BORDER + '</right>' +
+            '<top style="thin">' + BORDER + '</top><bottom style="thin">' + BORDER + '</bottom><diagonal/></border>' +
+          '</borders>' +
+          '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
+          '<cellXfs count="8">' +
+            '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+            '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>' +
+            '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' +
+            '<xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="right"/></xf>' +
+            '<xf numFmtId="164" fontId="2" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right"/></xf>' +
+            '<xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center"/></xf>' +
+            '<xf numFmtId="0" fontId="2" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right"/></xf>' +
+            '<xf numFmtId="164" fontId="2" fillId="3" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="right"/></xf>' +
+          '</cellXfs>' +
+          '<cellStyles count="1"><cellStyle name="標準" xfId="0" builtinId="0"/></cellStyles>' +
+          '</styleSheet>',
+        "xl/worksheets/sheet1.xml": XML +
+          '<worksheet ' + NS + ' ' + NS_R + '>' +
+          '<sheetViews><sheetView workbookViewId="0">' +
+          '<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" state="frozen"/>' +
+          '<selection pane="topRight"/><selection pane="bottomLeft"/><selection pane="bottomRight" activeCell="B2" sqref="B2"/>' +
+          '</sheetView></sheetViews>' +
+          '<sheetFormatPr defaultRowHeight="18.75"/>' +
+          '<cols>' + cols.join("") + '</cols>' +
+          '<sheetData>' + rows.join("") + '</sheetData>' +
+          '</worksheet>'
+      };
+      return new Blob([zipStored_(files)], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    }
+
+    /** ファイルをまとめて zip にする（圧縮なし。xlsx の入れ物）。 */
+    function zipStored_(files) {
+      var crcTable = zipStored_.crcTable;
+      if (!crcTable) {
+        crcTable = zipStored_.crcTable = [];
+        for (var n = 0; n < 256; n++) {
+          var c = n;
+          for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+          crcTable[n] = c >>> 0;
+        }
+      }
+      function crc32(bytes) {
+        var c = 0xFFFFFFFF;
+        for (var i = 0; i < bytes.length; i++) c = crcTable[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
+        return (c ^ 0xFFFFFFFF) >>> 0;
+      }
+      var now = new Date();
+      var dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+      var dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+      var enc = new TextEncoder();
+      var parts = [], central = [], offset = 0;
+      Object.keys(files).forEach(function(name) {
+        var nameBytes = enc.encode(name), data = enc.encode(files[name]), crc = crc32(data);
+        var h = new DataView(new ArrayBuffer(30));
+        h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true);
+        h.setUint16(8, 0, true); h.setUint16(10, dosTime, true); h.setUint16(12, dosDate, true);
+        h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true);
+        h.setUint16(26, nameBytes.length, true); h.setUint16(28, 0, true);
+        var cd = new DataView(new ArrayBuffer(46));
+        cd.setUint32(0, 0x02014b50, true); cd.setUint16(4, 20, true); cd.setUint16(6, 20, true);
+        cd.setUint16(8, 0x0800, true); cd.setUint16(10, 0, true); cd.setUint16(12, dosTime, true);
+        cd.setUint16(14, dosDate, true); cd.setUint32(16, crc, true); cd.setUint32(20, data.length, true);
+        cd.setUint32(24, data.length, true); cd.setUint16(28, nameBytes.length, true);
+        cd.setUint32(42, offset, true);
+        parts.push(new Uint8Array(h.buffer), nameBytes, data);
+        central.push(new Uint8Array(cd.buffer), nameBytes);
+        offset += 30 + nameBytes.length + data.length;
+      });
+      var cdSize = central.reduce(function(s, b) { return s + b.length; }, 0);
+      var end = new DataView(new ArrayBuffer(22));
+      var count = Object.keys(files).length;
+      end.setUint32(0, 0x06054b50, true); end.setUint16(8, count, true); end.setUint16(10, count, true);
+      end.setUint32(12, cdSize, true); end.setUint32(16, offset, true);
+      var all = parts.concat(central, [new Uint8Array(end.buffer)]);
+      var out = new Uint8Array(offset + cdSize + 22), pos = 0;
+      all.forEach(function(b) { out.set(b, pos); pos += b.length; });
+      return out;
     }
 
     /**
