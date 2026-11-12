@@ -571,6 +571,12 @@
       opacity: 1;
     }
 
+    /* 吹き出しは表に1つ（v2.11）。マスへ動かした直後だけ透明にして、前と同じ 0.15 秒で浮かび上がらせる（:hover より後に置く） */
+    .cell-qty .tooltip.tip-enter {
+      opacity: 0;
+      transition: none;
+    }
+
     .cell-qty .tooltip hr {
       border: 0;
       border-top: 1px solid rgba(255,255,255,0.2);
@@ -764,7 +770,7 @@
     <header>
       <div class="brand">
         <div class="brand-logo">テンチャク【惣菜】</div>
-        <div class="system-badge" id="versionBadge">v2.10</div>
+        <div class="system-badge" id="versionBadge" title="画面 v2.11（窓口の版はログインのあとに出ます）">v2.11</div>
       </div>
       <div class="nav-actions">
         <span id="userEmailDisplay" title="接続中のアカウント" style="font-size: 11px; color: #475569; margin-right: 10px; display: none;"></span>
@@ -812,6 +818,13 @@
         <button class="btn btn-secondary" style="width: 100%; justify-content: center; padding: 10px; margin-top: 10px;" onclick="openGuide()">
           📖 ご利用ガイド
         </button>
+
+        <!-- ログイン中のアカウントと、この端末のログインを消すボタン（v2.11: ログインは7日続くので、共用のパソコンで替えられるように） -->
+        <div id="accountLine" style="display: none; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; text-align: left; font-size: 12px; color: #475569; line-height: 1.6;">
+          ログイン中: <b id="accountEmail" style="color: #0f172a;"></b>
+          <button class="btn btn-secondary" id="signOutBtn" style="display: block; width: 100%; justify-content: center; padding: 8px; margin-top: 8px; font-size: 12px;" onclick="signOut()">別のアカウントでログインし直す（この端末のログインを消す）</button>
+          <span style="display: block; margin-top: 4px; font-size: 11px; color: #64748b;">ログインは7日続きます。共用のパソコンで本部の方が使ったあとは、これを押してください。</span>
+        </div>
 
         <!-- 開発者向け診断（既定は畳む。開かなければ内容は見えず、APIも呼ばない） -->
         <details id="devPanel" style="margin-top: 30px; text-align: left;" ontoggle="onDevPanelToggle_(this)">
@@ -1014,15 +1027,21 @@
       // acoop-ai.github.io はスマレコと同一オリジンのため、実績のある同じ Client ID を共用する
       GOOGLE_CLIENT_ID: '1072945615483-74jadmaet56chvhkfh2cpt4ae9dvh140.apps.googleusercontent.com',
       ALLOWED_DOMAINS: ['jaz-acoop.co.jp', 'jaz-acoop1.jp', 'jaz-acoop2.jp', 'jaz-acoop3.jp'],
-      APP_VERSION: '2.10'
+      APP_VERSION: '2.11'
     };
 
-    // ===== GIS OAuth2 トークン管理 =====
-    var currentAccessToken = null;
-    var accessTokenExpiry = 0;      // unix ms
+    // ===== ログインの札（v2.11: アプリの7日の札・スマレコ／テンチャク【畜産】と同じ型） =====
+    //   Google の札（約1時間）は、ログインの最初の1回だけ窓口（startSession）へ渡して捨てる（端末に残さない）。
+    //   それからは、窓口が署名した7日の札だけを送る。1時間ごとの更新・無音の更新はしない（ログインの画面が出るのは7日に1回）。
+    //   サインアウト（別のアカウントに替える）は、この端末の札を捨てるだけ（Google の許可は取り消さない＝ほかの端末・同じログイン設定のほかのアプリを落とさない）。
+    //   だれか・本部か・管理者かは、毎回窓口が札から決める（画面の札の中身は信じない）。
+    var SESSION_STORE_KEY = 'honbu_hatchu_session_v1';
+    var OLD_TOKEN_STORE_KEY = 'honbu_hatchu_oauth_token_v1';   // v2.10 までの Google の札。v2.11 では使わない（開いたときに消す）
+    var SESSION_MSG = 'ログインの期限が切れました。もう一度ログインしてください。';   // 切れたときの言い方は1つ（窓口も同じ文）
+    var appSession = null;          // { t: 札, e: 期限（unix ms） }
     var oauthTokenClient = null;
-    var tokenRefreshTimer = null;
-    var TOKEN_STORE_KEY = 'honbu_hatchu_oauth_token_v1';
+    var googleTokenJob_ = null;     // いま返事を待っている Google のログイン（1つだけ）
+    var loginAttempt_ = 0;
 
     // 現在編集中のメモ対象
     var activeMemoCell = {
@@ -1038,170 +1057,247 @@
     var clickedProductSort = null;
 
     // ============================================================
-    // 認証（GIS OAuth2 アクセストークン方式・スマレコと同一）
-    //   - トークンは localStorage に保存し、期限内なら再ログイン無しで復帰
-    //   - 期限5分前にサイレント自動更新
-    //   - サーバー(GAS)側でも毎APIコールでトークンを検証（ハードな関所）
+    // ログイン（v2.11: アプリの7日の札）
+    //   - 最初の1回だけ Google の窓で本人を確かめ、Google の札を窓口へ渡してアプリの札（7日）に替える
+    //   - アプリの札は localStorage に置く。期限内なら、開き直してもログインの画面は出ない
+    //   - 切れたら（7日・世代番号で止めた）ログインの画面を1回だけ出す（お知らせは1つ・ほかの失敗の知らせは重ねない）
     // ============================================================
-    function persistAccessToken_() {
+    /** 端末の札を読む。expired＝前の札があったが期限が切れていた（開いたときに1回だけ知らせる） */
+    function readSession_() {
       try {
-        if (!currentAccessToken || !accessTokenExpiry) return;
-        localStorage.setItem(TOKEN_STORE_KEY, JSON.stringify({ t: currentAccessToken, e: accessTokenExpiry }));
+        var o = JSON.parse(localStorage.getItem(SESSION_STORE_KEY) || 'null');
+        if (!o || typeof o.t !== 'string' || !o.t || !Number(o.e)) return { session: null, expired: false };
+        if (Date.now() > Number(o.e) - 60 * 1000) return { session: null, expired: true };   // 切れる1分前から切れた扱い
+        return { session: { t: o.t, e: Number(o.e) }, expired: false };
+      } catch (_) { return { session: null, expired: false }; }
+    }
+    function saveSession_(s) {
+      appSession = s;
+      try { localStorage.setItem(SESSION_STORE_KEY, JSON.stringify(s)); } catch (_) {}
+    }
+    /** 端末の札を捨てる。onlyToken を渡したときは、端末の札がその札のときだけ捨てる（別のタブで入り直した新しい札を、古いタブが消さない） */
+    function clearSession_(onlyToken) {
+      appSession = null;
+      try {
+        if (onlyToken) {
+          var o = JSON.parse(localStorage.getItem(SESSION_STORE_KEY) || 'null');
+          if (o && o.t && o.t !== onlyToken && Date.now() < Number(o.e) - 60 * 1000) { appSession = { t: o.t, e: Number(o.e) }; return; }
+        }
+        localStorage.removeItem(SESSION_STORE_KEY);
       } catch (_) {}
     }
-
-    function restoreAccessToken_() {
-      try {
-        var raw = localStorage.getItem(TOKEN_STORE_KEY);
-        if (!raw) return false;
-        var o = JSON.parse(raw);
-        if (!o || !o.t || !o.e || Date.now() > o.e - 60 * 1000) return false;
-        currentAccessToken = o.t;
-        accessTokenExpiry = o.e;
-        scheduleAccessTokenRefresh_(Math.floor((o.e - Date.now()) / 1000) + 30);
-        return true;
-      } catch (_) { return false; }
-    }
-
-    function clearStoredToken_() {
-      try { localStorage.removeItem(TOKEN_STORE_KEY); } catch (_) {}
-    }
+    // 別のタブで、入り直した・サインアウトした: このタブの札も合わせる（サインアウトした札を、開いたままのタブが持ち続けない）
+    window.addEventListener('storage', function (e) {
+      if (e.key !== SESSION_STORE_KEY && e.key !== null) return;
+      appSession = readSession_().session;
+    });
 
     function ensureOAuthTokenClient_() {
       if (oauthTokenClient) return;
       if (!(window.google && google.accounts && google.accounts.oauth2)) {
         throw new Error('Google Identity Services がロードされていません。回線を確認して再読み込みしてください。');
       }
+      // callback と error_callback は1度だけ渡し、いま待っているログイン（1つだけ）へ回す
       oauthTokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CONFIG.GOOGLE_CLIENT_ID,
         scope: 'openid email profile',
-        callback: function () {}  // requestAccessTokenOnce_ で都度上書き
+        prompt: 'select_account',   // ログインは7日に1回。そのときはアカウントの選択を必ず出す（共用のパソコンで、前の人のアカウントのまま入らない）
+        callback: function (resp) { if (googleTokenJob_) googleTokenJob_.onResponse(resp); },
+        error_callback: function (err) { if (googleTokenJob_) googleTokenJob_.onError(err); }
       });
     }
 
-    function requestAccessTokenOnce_(opts) {
+    /** Google の窓でログインして、Google の札を受け取る（押したときだけ。無音の更新はしない） */
+    function requestGoogleToken_(onClosed) {
       return new Promise(function (resolve, reject) {
         try { ensureOAuthTokenClient_(); } catch (e) { return reject(e); }
-        var isSilent = !!(opts && opts.silent);
-        var settled = false;
-        var guard = null;
-        if (isSilent) {
-          guard = setTimeout(function () {
-            if (settled) return;
-            settled = true;
-            reject(new Error('サイレント再認証がタイムアウトしました'));
-          }, 10000);
-        }
-        oauthTokenClient.callback = function (resp) {
-          if (settled) return;
-          settled = true;
-          if (guard) clearTimeout(guard);
-          if (!resp) return reject(new Error('empty oauth2 response'));
-          if (resp.error) return reject(new Error(resp.error_description || resp.error));
-          if (!resp.access_token) return reject(new Error('no access_token'));
-          currentAccessToken = resp.access_token;
-          var expiresIn = Number(resp.expires_in) || 3600;
-          accessTokenExpiry = Date.now() + (expiresIn - 30) * 1000;
-          persistAccessToken_();
-          scheduleAccessTokenRefresh_(expiresIn);
-          resolve(resp);
+        if (googleTokenJob_) googleTokenJob_.cancel();   // 押し直した: 前の待ちは取り下げる
+        var job = {
+          onResponse: function (resp) {
+            if (googleTokenJob_ !== job) return;
+            googleTokenJob_ = null;
+            if (!resp || resp.error || !resp.access_token) return reject(new Error((resp && (resp.error_description || resp.error)) || 'ログインを続けられませんでした。もう一度押してください。'));
+            resolve(resp.access_token);
+          },
+          onError: function (err) {
+            if (googleTokenJob_ !== job) return;
+            var type = (err && err.type) || '';
+            if (type === 'popup_closed') { if (onClosed) onClosed(); return; }   // 後から返事が届く端末があるので、待ちは残す
+            googleTokenJob_ = null;
+            reject(new Error(type === 'popup_failed_to_open'
+              ? 'ログインの窓を開けませんでした。ブラウザのポップアップを許可してから、もう一度押してください。'
+              : 'ログインを続けられませんでした。もう一度押してください。'));
+          },
+          cancel: function () {
+            if (googleTokenJob_ === job) googleTokenJob_ = null;
+            var e = new Error('cancelled'); e.cancelled = true; reject(e);
+          }
         };
-        try {
-          var req = {};
-          if (isSilent) req.prompt = '';
-          oauthTokenClient.requestAccessToken(req);
-        } catch (e) {
-          if (settled) return;
-          settled = true;
-          if (guard) clearTimeout(guard);
-          reject(e);
-        }
+        googleTokenJob_ = job;
+        try { oauthTokenClient.requestAccessToken(); }
+        catch (e) { googleTokenJob_ = null; reject(e); }
       });
     }
 
-    function scheduleAccessTokenRefresh_(expiresInSec) {
-      if (tokenRefreshTimer) clearTimeout(tokenRefreshTimer);
-      var refreshAfter = Math.min(Math.max((expiresInSec - 5 * 60) * 1000, 5000), 55 * 60 * 1000);
-      tokenRefreshTimer = setTimeout(function () {
-        requestAccessTokenOnce_({ silent: true }).catch(function (e) {
-          console.warn('token refresh failed:', e);
-        });
-      }, refreshAfter);
-    }
-
-    function fetchUserInfo_() {
-      return fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-        headers: { Authorization: 'Bearer ' + currentAccessToken }
-      }).then(function (res) {
-        if (!res.ok) throw new Error('userinfo HTTP ' + res.status);
-        return res.json();
-      });
-    }
-
-    function showAuthError_(msg) {
+    /** ログインの画面の知らせ。kind='info' は灰青（期限切れ・案内）、ほかは赤（失敗） */
+    function showAuthError_(msg, kind) {
       var el = document.getElementById('authError');
       if (!el) return;
-      if (msg) { el.textContent = msg; el.style.display = 'block'; }
-      else { el.style.display = 'none'; }
+      if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+      el.textContent = msg;
+      var info = kind === 'info';
+      el.style.color = info ? '#1e3a8a' : '#b91c1c';
+      el.style.background = info ? '#eff6ff' : '#fef2f2';
+      el.style.borderColor = info ? '#3b82f6' : '#dc2626';
+      el.style.display = 'block';
     }
 
     async function startGoogleLogin() {
       var btn = document.getElementById('googleLoginBtn');
+      var my = ++loginAttempt_;
+      var setBtn = function (on, label) { if (btn && my === loginAttempt_) { btn.disabled = !on; btn.textContent = label; } };
+      showAuthError_('');
+      setBtn(false, 'ログインの窓を開いています…');
+      // 窓が出ないまま待たせない: 20秒でボタンを戻す（待ちは残す＝後から返事が届けばそのまま入る）
+      var slow = setTimeout(function () { setBtn(true, 'Googleでログイン'); if (my === loginAttempt_) showAuthError_('ログインの窓が出ないときは、もう一度押してください。', 'info'); }, 20000);
+      var accessToken = '';
       try {
-        if (btn) btn.disabled = true;
-        showAuthError_('');
-        await requestAccessTokenOnce_({});
-        var info = await fetchUserInfo_();
-        var email = String(info.email || '').toLowerCase();
-        var domain = email.split('@')[1] || '';
-        if (CONFIG.ALLOWED_DOMAINS.indexOf(domain) === -1) {
-          currentAccessToken = null; accessTokenExpiry = 0; clearStoredToken_();
-          showAuthError_('このアカウント（' + email + '）では利用できません。会社アカウント（jaz-acoop系4ドメイン）でログインし直してください。');
-          return;
-        }
-        await onAuthed_(email);
+        accessToken = await requestGoogleToken_(function () {
+          clearTimeout(slow); setBtn(true, 'Googleでログイン');
+          if (my === loginAttempt_) showAuthError_('ログインの窓が閉じられました。もう一度「Googleでログイン」を押してください。', 'info');
+        });
       } catch (e) {
+        clearTimeout(slow);
+        if (e && e.cancelled) return;   // 押し直した（新しいほうが進んでいる）
+        setBtn(true, 'Googleでログイン');
         showAuthError_('ログインに失敗しました: ' + ((e && e.message) || e));
+        return;
+      }
+      clearTimeout(slow);
+      if (my !== loginAttempt_) return;
+      setBtn(false, '確かめています…');
+      showAuthError_('');
+      showLoading('ログインしています…');
+      try {
+        // Google の札を窓口へ渡して、アプリの札と店の一覧を1回の往復で受け取る。Google の札はここで捨てる（端末に残さない）
+        var r = await callGAS('startSession', { accessToken: accessToken }, { public: true });
+        accessToken = '';
+        saveSession_({ t: String(r.session || ''), e: Number(r.expiresAt) || (Date.now() + 7 * 86400000) });
+        hideLoading();
+        await onAuthed_(r);
+      } catch (e) {
+        accessToken = '';
+        hideLoading();
+        var msg = (e && e.message) || String(e);
+        if (/不明なアクション/.test(msg)) msg = 'ログインの窓口（GAS）が、まだ新しい版になっていません（E-GAS-OLD）。管理担当へ連絡してください。';
+        else if (!(e && e.fromServer)) msg = 'ログインに失敗しました: ' + msg;
+        showAuthError_(msg);
       } finally {
-        if (btn) btn.disabled = false;
+        setBtn(true, 'Googleでログイン');
       }
     }
 
-    async function onAuthed_(email) {
-      currentUserEmail = email;
+    /** 札が通った（ログインした・開き直した）: アカウント・本部か・店の一覧を当てる。使っている途中で切れて入り直したときは、見ていた店の表へ戻す */
+    async function onAuthed_(info) {
+      info = info || {};
+      currentUserEmail = String(info.email || '').toLowerCase();
       var disp = document.getElementById('userEmailDisplay');
-      if (disp) { disp.textContent = '👤 ' + email; disp.style.display = 'inline'; }
-      showPanel('loginPanel');
-      // セッション開始をサーバーに記録し、本部(HQ)判定を受け取って管理UIの表示を制御する。
-      callGAS('login').then(function (r) {
-        if (r && r.version) console.log('API version:', r.version);
-        applyHQPermission_(!!(r && r.isHQ));
-      }).catch(function (e) { console.warn('login log failed:', e); applyHQPermission_(false); });
-      loadInitialData_();
+      if (disp) { disp.textContent = '👤 ' + currentUserEmail; disp.style.display = 'inline'; }
+      var acct = document.getElementById('accountLine');
+      var acctEmail = document.getElementById('accountEmail');
+      if (acctEmail) acctEmail.textContent = currentUserEmail;
+      if (acct) acct.style.display = currentUserEmail ? 'block' : 'none';
+      noteServerBuild_(info.build);
+      applyHQPermission_(!!info.isHQ);
+      if (info.stores && typeof info.stores === 'object') applyStores_(info.stores);
+      else await loadInitialData_();
+      if (currentStoreCode && appSession) {
+        enterStore_(currentStoreCode, currentStoreName);
+      } else {
+        showPanel('loginPanel');
+      }
     }
 
-    // 本部(jaz-acoop.co.jp)＋本部相当として登録された個人以外は「管理者同期(取込)」ボタンを隠す
+    // 本部(jaz-acoop.co.jp)＋本部相当として登録された個人以外は「管理者同期(取込)」ボタンを隠す（本当の関所は窓口が毎回）
     function applyHQPermission_(isHQ) {
       window.__isHQ = isHQ;
       var btn = document.getElementById('adminViewBtn');
       if (btn) btn.style.display = isHQ ? 'inline-flex' : 'none';
     }
 
+    /** 左上の版: 画面と窓口（GAS）の2つ。窓口の版は返事から（貼り直せたかを、画面から確かめられる） */
+    function noteServerBuild_(build) {
+      if (!build) return;
+      var full = String(build);
+      var short = full.replace(/^tenchaku-/, '').replace(/-20(\d\d)-(\d\d)-(\d\d)/, '-$2-$3');
+      var b = document.getElementById('versionBadge');
+      if (!b) return;
+      b.textContent = 'v' + CONFIG.APP_VERSION + ' ／ 窓口 ' + short;
+      b.title = '画面 v' + CONFIG.APP_VERSION + ' ／ 窓口 ' + full;
+    }
+
+    /**
+     * 札が切れた・止められた: 端末の札を捨てて、ログインの画面を出す（お知らせはこの1つだけ。呼び出し側は重ねて知らせない）。
+     * 画面の切り替えは、いまの処理が終わってから（直後に開く窓などを、まとめて閉じるため）
+     */
+    var sessionUiTimer_ = null;
+    function sessionExpired_(sentToken) {
+      clearSession_(sentToken);
+      if (!sessionUiTimer_) {
+        sessionUiTimer_ = setTimeout(function () {
+          sessionUiTimer_ = null;
+          hideLoading();
+          closeAllModals_();
+          ['logoutBtn', 'currentStoreDisplay', 'userEmailDisplay', 'accountLine'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+          applyHQPermission_(false);
+          showPanel('authPanel');
+          showAuthError_(SESSION_MSG, 'info');
+        }, 0);
+      }
+      var e = new Error(SESSION_MSG); e.sessionExpired = true; return e;
+    }
+    /** HTML の中に入れる文字（商品名・取引先・メモなどは、取込んだ発注書や利用者の書いた文字＝HTML として動かさない） */
+    function esc_(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
+    }
+    function closeAllModals_() {
+      ['memoModal', 'alertsModal', 'favoritesModal', 'guideModal'].forEach(function (id) {
+        var m = document.getElementById(id); if (m) m.style.display = 'none';
+      });
+    }
+    /** 失敗の知らせ。札が切れた失敗は、ログインの画面が知らせているので重ねない */
+    function toastError_(prefix, err) {
+      if (err && err.sessionExpired) return;
+      showToast(prefix + ((err && err.message) || err), "error");
+    }
+
+    /** サインアウト（別のアカウントでログインし直す）: この端末の札を捨てるだけ。Google の許可は取り消さない */
+    function signOut() {
+      clearSession_();
+      currentUserEmail = ""; currentStoreCode = ""; currentStoreName = "";
+      clickedDateSort = null; clickedProductSort = null;
+      _guideCache = null; devInfoLoaded_ = false;
+      applyHQPermission_(false);
+      ['userEmailDisplay', 'currentStoreDisplay', 'logoutBtn', 'accountLine'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+      showPanel('authPanel');
+      showAuthError_('サインアウトしました（この端末のログインを消しました）。共用のパソコンでは、ブラウザの Google からもログアウトしてください（次の方が Google の画面で、あなたのアカウントを選べないように）。', 'info');
+    }
+
     // ===== GAS API 通信層（fetch版） =====
-    async function callGAS(action, data) {
+    //   opts.public … 札の要らない操作（startSession だけ）
+    async function callGAS(action, data, opts) {
       data = data || {};
-      var noToken = !currentAccessToken;
-      var nearExpiry = accessTokenExpiry && Date.now() > accessTokenExpiry - 60 * 1000;
-      if (noToken || nearExpiry) {
-        try { await requestAccessTokenOnce_({ silent: true }); }
-        catch (e) { console.warn('silent token refresh failed:', e); }
+      var isPublic = !!(opts && opts.public);
+      var payload = Object.assign({ action: action }, data);
+      if (!isPublic) {
+        if (!appSession || Date.now() > appSession.e) {
+          var fresh = readSession_().session;   // 別のタブで入り直していれば、その札で続ける
+          if (fresh) appSession = fresh;
+          else throw sessionExpired_(appSession && appSession.t);
+        }
+        payload.session = appSession.t;
       }
-      if (!currentAccessToken) {
-        showPanel('authPanel');
-        showAuthError_('セッションの有効期限が切れました。再度ログインしてください。');
-        throw new Error('セッション切れです。再度ログインしてください。');
-      }
-      var payload = Object.assign({ action: action, accessToken: currentAccessToken }, data);
+      var sent = payload.session || '';
       var res = await fetch(CONFIG.GAS_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
@@ -1211,30 +1307,46 @@
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var json = await res.json();
       if (json && json.error) {
-        // サーバー側で認証が通らないトークンは端末保存からも破棄（無限再試行を防止）
-        if (String(json.error).indexOf('認証失敗') >= 0) {
-          currentAccessToken = null; accessTokenExpiry = 0; clearStoredToken_();
+        // 札を送ったのに「認証失敗」: 窓口が札を知らない（窓口だけ前の版に戻した等）。期限切れと同じに扱う（ログインの画面へ・入り直すと E-GAS-OLD で分かる）
+        var refused = json.code === 'SESSION' || (sent && String(json.error).indexOf('認証失敗') === 0);
+        if (!isPublic && refused) {
+          if (appSession && appSession.t === sent) throw sessionExpired_(sent);
+          // 返事を待つ間に入り直した（送った札と今の札が違う）: 新しい札を消さない・画面も変えない
+          var stale = new Error(json.error); stale.sessionExpired = true; throw stale;
         }
-        throw new Error(json.error);
+        var err = new Error(json.error); err.code = json.code || ''; err.fromServer = true;
+        throw err;
       }
       return json.result;
     }
 
-    // 初期化ロード：保存済みトークンがあればサイレント復帰、無ければ認証画面
+    // 初期化ロード：端末に札があれば、そのまま開く（Google には聞かない）。無ければ（切れていれば）ログインの画面
     window.onload = async function () {
-      if (restoreAccessToken_()) {
+      try { localStorage.removeItem(OLD_TOKEN_STORE_KEY); } catch (_) {}   // v2.10 までの Google の札は使わない・残さない
+      var saved = readSession_();
+      if (saved.session) {
+        appSession = saved.session;
+        showPanel('loginPanel');
+        showLoading("店舗一覧を読み込んでいます...");
         try {
-          var info = await fetchUserInfo_();
-          var email = String(info.email || '').toLowerCase();
-          var domain = email.split('@')[1] || '';
-          if (email && CONFIG.ALLOWED_DOMAINS.indexOf(domain) !== -1) {
-            await onAuthed_(email);
-            return;
+          var r = await callGAS('login', { withStores: true });   // 開いたときの記録・本部か・店の一覧を1回の往復で
+          hideLoading();
+          await onAuthed_(r);
+        } catch (e) {
+          hideLoading();
+          if (!(e && e.sessionExpired)) {
+            // 札は通ったが読めなかった（通信・窓口の一時的な失敗）: 止まったままに見せない。読み直しを案内し、サインアウトも押せるようにする
+            var sel = document.getElementById("storeSelect");
+            if (sel) sel.innerHTML = '<option value="">店舗一覧を読み込めませんでした（画面を読み込み直してください）</option>';
+            var acct = document.getElementById('accountLine'); if (acct) acct.style.display = 'block';
           }
-        } catch (e) { /* 復帰失敗 → 通常ログインへ */ }
-        currentAccessToken = null; accessTokenExpiry = 0; clearStoredToken_();
+          toastError_("店舗一覧の取得に失敗しました: ", e);
+        }
+        return;
       }
+      if (saved.expired) clearSession_();
       showPanel('authPanel');
+      if (saved.expired) showAuthError_(SESSION_MSG, 'info');   // 前の札が切れていた: 1回だけ知らせる
     };
 
     // 開発者向け診断パネル：既定は畳む。開いたときだけ getDebugInfo を1回取得する（運用中は見えない）。
@@ -1249,24 +1361,31 @@
         if (c) c.textContent = JSON.stringify(debug, null, 2);
       } catch (e) {
         devInfoLoaded_ = false;
-        if (c) c.textContent = '取得に失敗しました: ' + (e && e.message ? e.message : e);
+        if (c) c.textContent = e && e.sessionExpired ? '' : '取得に失敗しました: ' + (e && e.message ? e.message : e);
       }
     }
 
-    // 認証後の初期データ読み込み（店舗一覧＋診断情報）
+    // 店舗一覧を画面の2つの選択欄に当てる（ログインの返事・開き直したときの返事に入っている）
+    function applyStores_(stores) {
+      allStores = stores || {};
+      fillStoreOptions(document.getElementById("storeSelect"), allStores);
+      fillStoreOptions(document.getElementById("headerStoreSelect"), allStores);
+      // 前回この端末で使った店舗を復元（店舗ごとのUI設定を引き継ぐ第一歩）
+      restoreLastStore_();
+      var hsel = document.getElementById("headerStoreSelect");
+      if (hsel && currentStoreCode) hsel.value = currentStoreCode;
+    }
+
+    // 店舗一覧だけを読み直す（返事に一覧が入っていなかったとき）
     async function loadInitialData_() {
       showLoading("店舗一覧を読み込んでいます...");
       try {
         var stores = await callGAS('getStores');
         hideLoading();
-        allStores = stores || {};
-        fillStoreOptions(document.getElementById("storeSelect"), allStores);
-        fillStoreOptions(document.getElementById("headerStoreSelect"), allStores);
-        // 前回この端末で使った店舗を復元（店舗ごとのUI設定を引き継ぐ第一歩）
-        restoreLastStore_();
+        applyStores_(stores);
       } catch (err) {
         hideLoading();
-        showToast("店舗一覧の取得に失敗しました: " + err.message, "error");
+        toastError_("店舗一覧の取得に失敗しました: ", err);
       }
       // 診断情報は開発者向けパネルを「開いたとき」だけ取得する（onDevPanelToggle_）。既定は畳んで非表示。
     }
@@ -1302,8 +1421,13 @@
         return;
       }
 
+      enterStore_(code, select.options[select.selectedIndex].textContent.split(" : ")[1]);
+    }
+
+    /** 店の発注の表へ入る（店の選択の「接続」・使っている途中でログインし直したとき） */
+    function enterStore_(code, name) {
       currentStoreCode = code;
-      currentStoreName = select.options[select.selectedIndex].textContent.split(" : ")[1];
+      currentStoreName = name || currentStoreName;
       rememberLastStore_(code);
 
       // ダッシュボード上部の店舗切替セレクトを現在の店舗に同期
@@ -1466,7 +1590,7 @@
         });
       } catch (err) {
         hideLoading();
-        showToast("ドライブのファイル検索に失敗しました: " + err.message, "error");
+        toastError_("ドライブのファイル検索に失敗しました: ", err);
       }
     }
 
@@ -1498,7 +1622,7 @@
         buildGrid();
       } catch (err) {
         hideLoading();
-        showToast("データの読み込みに失敗しました: " + err.message, "error");
+        toastError_("データの読み込みに失敗しました: ", err);
       }
     }
 
@@ -1652,11 +1776,12 @@
         list.forEach(function(al) {
           var item = document.createElement("div");
           item.className = "widget-modal-item";
-          item.innerHTML = '<div class="alert-header">⚠️ ' + al.productName + ' (' + al.productCode + ')</div>' +
+          // 取込んだ発注書の文字（商品名・コード・取引先）は esc_ を通す（v2.11・HTML として動かさない。見た目は前と同じ）
+          item.innerHTML = '<div class="alert-header">⚠️ ' + esc_(al.productName) + ' (' + esc_(al.productCode) + ')</div>' +
                            '<div class="alert-body" style="margin-top:6px;">' +
-                           '取引先: <strong>' + al.supplier + '</strong><br>' +
-                           '検出日時: ' + formatDateString(al.maxQtyDate) + ' | 数量: <strong style="color:#b91c1c;">' + al.maxQty + '</strong> (通常平均: ' + al.mean + ')<br>' +
-                           '<span style="color:#d97706; font-weight:700;">※通常の注文量より ' + al.diffPct + '% 増加しています。誤入力がないかご確認ください。</span>' +
+                           '取引先: <strong>' + esc_(al.supplier) + '</strong><br>' +
+                           '検出日時: ' + esc_(formatDateString(al.maxQtyDate)) + ' | 数量: <strong style="color:#b91c1c;">' + esc_(al.maxQty) + '</strong> (通常平均: ' + esc_(al.mean) + ')<br>' +
+                           '<span style="color:#d97706; font-weight:700;">※通常の注文量より ' + esc_(al.diffPct) + '% 増加しています。誤入力がないかご確認ください。</span>' +
                            '</div>';
           listDiv.appendChild(item);
         });
@@ -1697,11 +1822,12 @@
           item.style.justifyContent = "space-between";
           item.style.alignItems = "center";
           
+          // 閲覧の記録（取引先・コード）は画面から送られた文字のまま窓口に残る＝だれでも書ける。esc_ を通す（v2.11・保存型XSS を閉じた。見た目は前と同じ）
           item.innerHTML = '<div>' +
-                           '  <strong>' + (idx+1) + '. ' + prodName + '</strong><br>' +
-                           '  <span style="font-size:11px; color:var(--text-muted);">コード: ' + st.productCode + ' | 取引先: ' + st.supplier + '</span>' +
+                           '  <strong>' + (idx+1) + '. ' + esc_(prodName) + '</strong><br>' +
+                           '  <span style="font-size:11px; color:var(--text-muted);">コード: ' + esc_(st.productCode) + ' | 取引先: ' + esc_(st.supplier) + '</span>' +
                            '</div>' +
-                           '<span class="view-count" style="font-size:12px; padding:3px 10px;">' + st.count + ' 回閲覧</span>';
+                           '<span class="view-count" style="font-size:12px; padding:3px 10px;">' + esc_(st.count) + ' 回閲覧</span>';
           listDiv.appendChild(item);
         });
         body.appendChild(listDiv);
@@ -1726,14 +1852,17 @@
       if (!modal || !body) return;
       modal.style.display = "flex";
       if (_guideCache) { body.innerHTML = _guideCache; return; }
+      // ログインの前（ログインの画面の帯から押した）: 本文は窓口がログインを確かめてから渡すので、先にログインを案内する（「期限が切れました」と出さない）
+      if (!appSession && !readSession_().session) { body.textContent = 'ご利用ガイドは、ログインしてからご覧いただけます。「Googleでログイン」を押してください。'; return; }
       body.innerHTML = '<p style="color:#64748b;">ご利用ガイドを読み込んでいます…</p>';
       try {
         var g = await callGAS('getGuide');
         _guideCache = (g && g.html) || '';
         body.innerHTML = _guideCache;
       } catch (e) {
+        if (e && e.sessionExpired) { body.innerHTML = ''; return; }
         body.innerHTML = '<p style="color:#b91c1c;">ご利用ガイドを取得できませんでした：'
-          + String((e && e.message) || e) + '<br>時間をおいて再度お試しください。</p>';
+          + esc_((e && e.message) || e) + '<br>時間をおいて再度お試しください。</p>';
       }
     }
     function closeGuide() {
@@ -1923,19 +2052,21 @@
         
         var displayName = (isProdSorted ? "👇 " : "") + p.name;
         
-        th.innerHTML = '<div class="product-header-content">' + 
-                       '<span class="product-title" style="cursor: pointer;" title="クリックでこの商品の納品日を上寄せします">' + displayName + '</span>' + 
-                       '<span class="product-specs">' + p.specs + '</span>' +
-                       '<span class="product-cost">￥' + Math.round(p.cost) + '</span>' +
-                       '<button class="pin-btn" onclick="togglePin(\'' + p.code + '\')" title="' + (p.isPinned ? "優先表示解除" : "最優先表示にピン留め") + '">' + pinIcon + '</button>' +
+        // 取込んだ発注書の文字（商品名・規格）は esc_ を通す。ピン留めのボタンは、コードを HTML に埋めずに関数で渡す（v2.11・見た目は前と同じ）
+        th.innerHTML = '<div class="product-header-content">' +
+                       '<span class="product-title" style="cursor: pointer;" title="クリックでこの商品の納品日を上寄せします">' + esc_(displayName) + '</span>' +
+                       '<span class="product-specs">' + esc_(p.specs) + '</span>' +
+                       '<span class="product-cost">￥' + esc_(Math.round(p.cost)) + '</span>' +
+                       '<button class="pin-btn" title="' + (p.isPinned ? "優先表示解除" : "最優先表示にピン留め") + '">' + pinIcon + '</button>' +
                        '</div>';
-        
+
         var titleSpan = th.querySelector(".product-title");
         (function(code, name) {
           titleSpan.onclick = function(e) {
             e.stopPropagation();
             toggleProductSort(code, name);
           };
+          th.querySelector(".pin-btn").onclick = function() { togglePin(code); };
         })(p.code, p.name);
         
         headerTr.appendChild(th);
@@ -1953,7 +2084,7 @@
         var dateTd = document.createElement("td");
         var isDateSorted = clickedDateSort === dateHeaders[r];
         var formattedDate = (isDateSorted ? "👉 " : "") + formatDateString(dateHeaders[r]);
-        dateTd.innerHTML = formattedDate;
+        dateTd.textContent = formattedDate;
         dateTd.style.cursor = "pointer";
         dateTd.title = "クリックでこの日の注文分を左寄せします";
         
@@ -1991,41 +2122,14 @@
             var memoText = memos[memoKey] || "";
             var memoIconHtml = memoText ? '<div class="cell-memo-indicator">📝</div>' : '';
             
-            td.innerHTML = qty + badgeHtml + memoIconHtml;
-            
-            var tooltip = document.createElement("div");
-            tooltip.className = "tooltip";
-            
-            var alertMessage = isAnomaly ? '<span style="color:#fbbf24; font-weight:800;">⚠️ 警告: 通常比大幅オーバー (平均 ' + stat.mean + ')</span><hr>' : '';
-            var memoDisplay = memoText ? '<strong>店舗メモ:</strong> ' + memoText + '<hr>' : '';
-            
-            tooltip.innerHTML = '<strong style="color:#93c5fd;">' + p.name + '</strong><br>' + 
-                                '材料コード: ' + p.code + '<br>' +
-                                '取引先: ' + p.supplier + '<br>' +
-                                '原価: ￥' + p.cost + ' | 規格: ' + p.specs + '<br><hr>' +
-                                alertMessage + 
-                                memoDisplay + 
-                                '<span style="color:#c084fc;">※ダブルクリックでメモを入力・編集</span>';
-            
-            td.appendChild(tooltip);
-            
-            (function(date, code, name) {
-              td.ondblclick = function() {
-                openMemoModal(date, code, name);
-              };
-            })(dateHeaders[r], p.code, p.name);
-            
+            td.innerHTML = esc_(qty) + badgeHtml + memoIconHtml;
+            // 吹き出しは表に1つだけ（gridTip_）。マスにさわったときに、そのマスの中身を詰めて、そのマスへ動かす（v2.11・表を描く速さ）
           } else {
             td.className = "cell-qty";
             td.innerHTML = "";
-            
-            (function(date, code, name) {
-              td.ondblclick = function() {
-                openMemoModal(date, code, name);
-              };
-            })(dateHeaders[r], p.code, p.name);
           }
-          
+          // ダブルクリック（メモ）は表に1つの受け口（gridTable の dblclick）。マスごとに関数を作らない
+
           tr.appendChild(td);
         }
         
@@ -2071,6 +2175,75 @@
       table.appendChild(totalTr);
     }
 
+    // ── 発注の表の吹き出し（1つだけ・使い回す）と、ダブルクリックの受け口（v2.11・表を描く速さ） ──
+    //   前は、数量のあるマスごとに吹き出しを作っていた（2店×商品80×32日の見本で 2,788 個）。表を描く時間の大半がそれだった。
+    //   いまは、マスにさわったときに、そのマスの中身（商品・取引先・原価・規格・通常比の印・店舗メモ）を詰めて、そのマスの中へ動かす。
+    //   形と出し方は前と同じ CSS（.cell-qty .tooltip ／ .cell-qty:hover .tooltip）で決まる。
+    //   信頼境界: 店舗メモは4ドメインのだれでも書ける文字、商品名・取引先・規格は取込んだ発注書の文字。
+    //   どれも textContent で入れる（< や & があっても、その文字のまま出す＝HTML として動かさない）。
+    var gridTip_ = null, gridTipHost_ = null;
+    /** マス（td）が、表のどの日付・どの商品か（1行目は見出し・1列目はお届け日・最後の行は月間合計） */
+    function gridCellAt_(td) {
+      var tr = td && td.parentNode;
+      if (!tr) return null;
+      var r = tr.rowIndex - 1, c = td.cellIndex - 1;
+      if (r < 0 || c < 0 || r >= dateHeaders.length || c >= productHeaders.length || !gridMatrix[r]) return null;
+      return { r: r, c: c, date: dateHeaders[r], p: productHeaders[c] };
+    }
+    /** 吹き出しの中身（前の版の文と同じ並び・同じ色） */
+    function fillGridTip_(tip, cell) {
+      var p = cell.p, qty = gridMatrix[cell.r][cell.c];
+      var stat = alerts[p.code];
+      var isAnomaly = stat && qty >= stat.threshold;
+      var memoText = memos[cell.date + "_" + p.code] || "";
+      var add = function (tag, text, style) {
+        var e = document.createElement(tag);
+        if (text !== undefined) e.textContent = text;
+        if (style) e.setAttribute("style", style);
+        tip.appendChild(e);
+        return e;
+      };
+      var txt = function (s) { tip.appendChild(document.createTextNode(s)); };
+      tip.textContent = "";
+      add("strong", "" + p.name, "color:#93c5fd;"); add("br");
+      txt("材料コード: " + p.code); add("br");
+      txt("取引先: " + p.supplier); add("br");
+      txt("原価: ￥" + p.cost + " | 規格: " + p.specs); add("br"); add("hr");
+      if (isAnomaly) { add("span", "⚠️ 警告: 通常比大幅オーバー (平均 " + stat.mean + ")", "color:#fbbf24; font-weight:800;"); add("hr"); }
+      if (memoText) { add("strong", "店舗メモ:"); txt(" " + memoText); add("hr"); }
+      add("span", "※ダブルクリックでメモを入力・編集", "color:#c084fc;");
+    }
+    function showGridTip_(td) {
+      var cell = gridCellAt_(td);
+      if (!cell) return;
+      if (!gridTip_) { gridTip_ = document.createElement("div"); gridTip_.className = "tooltip"; }
+      fillGridTip_(gridTip_, cell);
+      if (gridTip_.parentNode !== td) {
+        gridTip_.classList.add("tip-enter");        // 動かした直後は透明から
+        td.appendChild(gridTip_);
+        void getComputedStyle(gridTip_).opacity;    // 透明の形を一度決めてから外す → :hover の形へ 0.15 秒で移る（前と同じ）
+        gridTip_.classList.remove("tip-enter");
+      }
+      gridTipHost_ = td;
+    }
+    (function bindGridEvents_() {
+      var table = document.getElementById("gridTable");
+      if (!table || table.__gridBound) return;
+      table.__gridBound = true;
+      table.addEventListener("mouseover", function (e) {
+        var td = e.target && e.target.closest ? e.target.closest("td.cell-qty.has-value") : null;
+        if (!td || !table.contains(td)) return;
+        if (td === gridTipHost_ && gridTip_ && gridTip_.parentNode === td) return;   // 同じマスの中で動いただけ
+        showGridTip_(td);
+      });
+      table.addEventListener("dblclick", function (e) {
+        var td = e.target && e.target.closest ? e.target.closest("td.cell-qty") : null;
+        if (!td || !table.contains(td)) return;
+        var cell = gridCellAt_(td);
+        if (cell) openMemoModal(cell.date, cell.p.code, cell.p.name);
+      });
+    })();
+
     /**
      * 商品のピン留めトグル
      */
@@ -2083,7 +2256,7 @@
         loadDashboardData();
       } catch (err) {
         hideLoading();
-        showToast("優先順位変更に失敗しました: " + err.message, "error");
+        toastError_("優先順位変更に失敗しました: ", err);
       }
     }
 
@@ -2144,7 +2317,7 @@
         renderTable();
       } catch (err) {
         hideLoading();
-        showToast("メモの保存に失敗しました: " + err.message, "error");
+        toastError_("メモの保存に失敗しました: ", err);
       }
     }
 
@@ -2451,7 +2624,7 @@
         }
       } catch (err) {
         hideLoading();
-        showToast("同期に失敗しました: " + err.message, "error");
+        toastError_("同期に失敗しました: ", err);
       }
     }
 
@@ -2475,7 +2648,7 @@
         out.textContent = JSON.stringify(res, null, 2);
       } catch (err) {
         hideLoading();
-        showToast("構造診断に失敗しました: " + err.message, "error");
+        toastError_("構造診断に失敗しました: ", err);
       }
     }
 
@@ -2497,7 +2670,7 @@
         showDashboard();
       } catch (err) {
         hideLoading();
-        showToast("初期化に失敗しました: " + err.message, "error");
+        toastError_("初期化に失敗しました: ", err);
       }
     }
 
