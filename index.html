@@ -770,12 +770,13 @@
     <header>
       <div class="brand">
         <div class="brand-logo">テンチャク【惣菜】</div>
-        <div class="system-badge" id="versionBadge" title="画面 v2.11（窓口の版はログインのあとに出ます）">v2.11</div>
+        <div class="system-badge" id="versionBadge" title="画面 v2.12（窓口の版はログインのあとに出ます）">v2.12</div>
       </div>
       <div class="nav-actions">
         <span id="userEmailDisplay" title="接続中のアカウント" style="font-size: 11px; color: #475569; margin-right: 10px; display: none;"></span>
         <span id="currentStoreDisplay" style="font-size: 14px; font-weight: 900; display: none; color: #1e3a8a; background: #dbeafe; padding: 4px 10px; border-radius: 6px; border: 1.5px solid #1e3a8a; margin-right: 12px;"></span>
-        <button class="btn btn-secondary" onclick="openGuide()">📖 ご利用ガイド</button>
+        <!-- 利用ガイドは別のページ（guide.html・新しいタブ）。本文はログインの後に窓口から受け取る（v2.12） -->
+        <a class="btn btn-secondary" id="guideLink" href="guide.html" target="_blank" rel="noopener" style="text-decoration: none;">📖 利用ガイド</a>
         <button class="btn btn-secondary" id="adminViewBtn" onclick="openAdminPanel()" style="display: none;">⚙ 管理者同期</button>
         <button class="btn btn-danger" id="logoutBtn" style="display: none;" onclick="logout()">ログアウト</button>
       </div>
@@ -815,9 +816,9 @@
           選択した店舗で接続
         </button>
 
-        <button class="btn btn-secondary" style="width: 100%; justify-content: center; padding: 10px; margin-top: 10px;" onclick="openGuide()">
-          📖 ご利用ガイド
-        </button>
+        <a class="btn btn-secondary" id="guideLinkStore" href="guide.html" target="_blank" rel="noopener" style="width: 100%; justify-content: center; padding: 10px; margin-top: 10px; text-decoration: none;">
+          📖 利用ガイド
+        </a>
 
         <!-- ログイン中のアカウントと、この端末のログインを消すボタン（v2.11: ログインは7日続くので、共用のパソコンで替えられるように） -->
         <div id="accountLine" style="display: none; margin-top: 16px; padding-top: 12px; border-top: 1px solid #e2e8f0; text-align: left; font-size: 12px; color: #475569; line-height: 1.6;">
@@ -826,8 +827,8 @@
           <span style="display: block; margin-top: 4px; font-size: 11px; color: #64748b;">ログインは7日続きます。共用のパソコンで本部の方が使ったあとは、これを押してください。</span>
         </div>
 
-        <!-- 開発者向け診断（既定は畳む。開かなければ内容は見えず、APIも呼ばない） -->
-        <details id="devPanel" style="margin-top: 30px; text-align: left;" ontoggle="onDevPanelToggle_(this)">
+        <!-- 開発者向け診断（既定は畳む。開かなければ内容は見えず、APIも呼ばない）。v2.12: 本部の方だけに出す（窓口も本部だけに返す） -->
+        <details id="devPanel" style="display: none; margin-top: 30px; text-align: left;" ontoggle="onDevPanelToggle_(this)">
           <summary style="cursor: pointer; font-size: 11px; color: #94a3b8; user-select: none;">開発者向け診断（クリックで開く）</summary>
           <div style="border: 1px dashed #cbd5e1; padding: 15px; background: #f8fafc; border-radius: 8px; font-size: 11px; font-family: monospace; margin-top: 8px;">
             <div id="debugContent" style="white-space: pre-wrap; max-height: 200px; overflow-y: auto; color: #475569;">開くと診断情報を読み込みます…</div>
@@ -926,7 +927,8 @@
         </div>
         
         <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 25px; flex-wrap: wrap;">
-          <button class="btn btn-danger" onclick="runClearDatabase()" style="margin-right: auto;">⚠️ DB全初期化</button>
+          <!-- 全消しは管理者だけ（v2.12: 管理者のアカウントにだけ出す。本当の関所は窓口） -->
+          <button class="btn btn-danger" id="clearDbBtn" onclick="runClearDatabase()" style="display: none; margin-right: auto;">⚠️ DB全初期化</button>
           <button class="btn btn-secondary" onclick="runInspectStructure()" title="選択した元ファイルの見出し構造を生ダンプします（決め打ち修正の前に原本を確認するための診断）">🔬 見出し構造を診断</button>
           <button class="btn btn-primary" onclick="runImport()">発注データを同期</button>
         </div>
@@ -985,18 +987,6 @@
     </div>
   </div>
 
-  <!-- Modal: ご利用ガイド（入れ物のみ。本文はGASのGuide.htmlから認証付きで取得して差し込む） -->
-  <div class="modal" id="guideModal">
-    <div class="modal-content" style="width: 780px; max-width: 94vw;">
-      <div class="modal-header">📖 ご利用ガイド（テンチャク【惣菜】）</div>
-      <div class="modal-body" id="guideBody" style="max-height: 70vh; overflow-y: auto; font-size: 13px; line-height: 1.7;">
-        <p style="color:#64748b;">ご利用ガイドを読み込んでいます…</p>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-primary" onclick="closeGuide()">閉じる</button>
-      </div>
-    </div>
-  </div>
 
   <!-- Toast Notification -->
   <div class="toast" id="toast"></div>
@@ -1027,7 +1017,7 @@
       // acoop-ai.github.io はスマレコと同一オリジンのため、実績のある同じ Client ID を共用する
       GOOGLE_CLIENT_ID: '1072945615483-74jadmaet56chvhkfh2cpt4ae9dvh140.apps.googleusercontent.com',
       ALLOWED_DOMAINS: ['jaz-acoop.co.jp', 'jaz-acoop1.jp', 'jaz-acoop2.jp', 'jaz-acoop3.jp'],
-      APP_VERSION: '2.11'
+      APP_VERSION: '2.12'
     };
 
     // ===== ログインの札（v2.11: アプリの7日の札・スマレコ／テンチャク【畜産】と同じ型） =====
@@ -1208,7 +1198,9 @@
       if (acctEmail) acctEmail.textContent = currentUserEmail;
       if (acct) acct.style.display = currentUserEmail ? 'block' : 'none';
       noteServerBuild_(info.build);
-      applyHQPermission_(!!info.isHQ);
+      applyHQPermission_(!!info.isHQ, !!info.isAdmin);
+      // ポータルの「利用ガイド」から来た（index.html?guide=1）: ログインできたら、利用ガイドのページへ移る（1回だけ）
+      if (takeGuideFlag_()) { location.href = 'guide.html'; return; }
       if (info.stores && typeof info.stores === 'object') applyStores_(info.stores);
       else await loadInitialData_();
       if (currentStoreCode && appSession) {
@@ -1218,11 +1210,36 @@
       }
     }
 
-    // 本部(jaz-acoop.co.jp)＋本部相当として登録された個人以外は「管理者同期(取込)」ボタンを隠す（本当の関所は窓口が毎回）
-    function applyHQPermission_(isHQ) {
+    // 本部(jaz-acoop.co.jp)＋本部相当として登録された個人以外は「管理者同期(取込)」ボタンと「開発者向け診断」を隠す。
+    //   「DB全初期化」は管理者だけに出す（v2.12）。どれも本当の関所は窓口が毎回
+    function applyHQPermission_(isHQ, isAdmin) {
       window.__isHQ = isHQ;
       var btn = document.getElementById('adminViewBtn');
       if (btn) btn.style.display = isHQ ? 'inline-flex' : 'none';
+      var dev = document.getElementById('devPanel');
+      if (dev) { dev.style.display = isHQ ? 'block' : 'none'; if (!isHQ) dev.open = false; }
+      var clear = document.getElementById('clearDbBtn');
+      if (clear) clear.style.display = isHQ && isAdmin ? 'inline-flex' : 'none';
+    }
+
+    // ?guide=1（ポータルの「利用ガイド」のボタン）: 印を覚えておき、ログインの後に1回だけ guide.html へ移る（Google の窓でのログインを挟んでも消えない）
+    var GUIDE_FLAG_KEY = 'honbu_open_guide';
+    var leavingToGuide_ = false;   // すぐ利用ガイドへ移る途中（開いたときのログインの往復を送らない）
+    (function rememberGuideFlag_() {
+      try {
+        var u = new URL(location.href);
+        if (u.searchParams.get('guide') === '1') {
+          // もうログインしている（端末の札が期限内）: 窓口に聞かずに、すぐ利用ガイドのページへ（往復 1 本ぶん速い。札が止められていたら、ガイドの側が札を捨ててログインへ案内する）
+          if (readSession_().session) { leavingToGuide_ = true; location.replace('guide.html'); return; }
+          sessionStorage.setItem(GUIDE_FLAG_KEY, '1');
+          u.searchParams.delete('guide');
+          history.replaceState(null, '', u.pathname + (u.search ? u.search : '') + u.hash);
+        }
+      } catch (_) { /* 覚えられない端末: ログインの後に自分で「利用ガイド」を押す */ }
+    })();
+    function takeGuideFlag_() {
+      try { if (sessionStorage.getItem(GUIDE_FLAG_KEY) === '1') { sessionStorage.removeItem(GUIDE_FLAG_KEY); return true; } } catch (_) { }
+      return false;
     }
 
     /** 左上の版: 画面と窓口（GAS）の2つ。窓口の版は返事から（貼り直せたかを、画面から確かめられる） */
@@ -1249,7 +1266,7 @@
           hideLoading();
           closeAllModals_();
           ['logoutBtn', 'currentStoreDisplay', 'userEmailDisplay', 'accountLine'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
-          applyHQPermission_(false);
+          applyHQPermission_(false, false);
           showPanel('authPanel');
           showAuthError_(SESSION_MSG, 'info');
         }, 0);
@@ -1261,7 +1278,7 @@
       return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; });
     }
     function closeAllModals_() {
-      ['memoModal', 'alertsModal', 'favoritesModal', 'guideModal'].forEach(function (id) {
+      ['memoModal', 'alertsModal', 'favoritesModal'].forEach(function (id) {
         var m = document.getElementById(id); if (m) m.style.display = 'none';
       });
     }
@@ -1276,8 +1293,8 @@
       clearSession_();
       currentUserEmail = ""; currentStoreCode = ""; currentStoreName = "";
       clickedDateSort = null; clickedProductSort = null;
-      _guideCache = null; devInfoLoaded_ = false;
-      applyHQPermission_(false);
+      devInfoLoaded_ = false;
+      applyHQPermission_(false, false);
       ['userEmailDisplay', 'currentStoreDisplay', 'logoutBtn', 'accountLine'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
       showPanel('authPanel');
       showAuthError_('サインアウトしました（この端末のログインを消しました）。共用のパソコンでは、ブラウザの Google からもログアウトしてください（次の方が Google の画面で、あなたのアカウントを選べないように）。', 'info');
@@ -1322,6 +1339,7 @@
 
     // 初期化ロード：端末に札があれば、そのまま開く（Google には聞かない）。無ければ（切れていれば）ログインの画面
     window.onload = async function () {
+      if (leavingToGuide_) return;   // ?guide=1 でログイン済み: もう利用ガイドへ移っている
       try { localStorage.removeItem(OLD_TOKEN_STORE_KEY); } catch (_) {}   // v2.10 までの Google の札は使わない・残さない
       var saved = readSession_();
       if (saved.session) {
@@ -1391,7 +1409,22 @@
     }
 
     /**
-     * 店舗セレクトに選択肢を流し込む共通処理（ログイン画面・ダッシュボード上部で共用）
+     * 店の並び（v2.12・PO 2026-11-12）: 正＝ヒッスルの「店を替える」のタブの並び（部門損益の検討表の行の順と同じ）。
+     *   首都圏 1G → 2G → 北関東 JAF → 4G。店の選び欄（ログインの画面・上の帯）はこの順。並びを変えるのはここだけ。
+     *   ここに無い店（東北・新しい店）は最後に店番号の順。店の扱い（だれがどの店を見られるか・合計）は変えない＝並びだけ。
+     *   正の置き場（店の名前つき）は、開発側のナレッジ 40_projects_index\project_store_order_canonical.md。公開の画面には店番号だけを書く。
+     */
+    var STORE_ORDER = [
+      '763', '711', '758', '721', '786', '735', '723',             // 首都圏 1G
+      '743', '788', '751', '737',                                  // 首都圏 2G
+      '44', '23', '38', '55', '27', '51', '33', '32', '45', '25', '81',  // 北関東 JAF
+      '37', '21', '35', '52', '26', '36', '58'                     // 北関東 4G
+    ];
+    function storeRank_(code) { var i = STORE_ORDER.indexOf(String(code)); return i < 0 ? STORE_ORDER.length : i; }
+    function compareStores_(a, b) { return storeRank_(a) - storeRank_(b) || parseInt(a, 10) - parseInt(b, 10) || (String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0); }
+
+    /**
+     * 店舗セレクトに選択肢を流し込む共通処理（ログイン画面・ダッシュボード上部で共用）。並びは STORE_ORDER（上）
      */
     function fillStoreOptions(select, stores) {
       if (!select) return;
@@ -1401,7 +1434,7 @@
         select.innerHTML = '<option value="">店舗データが見つかりません</option>';
         return;
       }
-      keys.sort(function(a, b) { return parseInt(a, 10) - parseInt(b, 10); });
+      keys.sort(compareStores_);
       keys.forEach(function(code) {
         var opt = document.createElement("option");
         opt.value = code;
@@ -1840,35 +1873,8 @@
       document.getElementById("favoritesModal").style.display = "none";
     }
 
-    /**
-     * ご利用ガイド：GitHub には置かず GAS ページ（?page=guide）を新規タブで開く。
-     */
-    // 本文はサーバー（GASの Guide.html＝唯一の原本）から認証付きで取得する。
-    // 公開リポで配信されるこのHTMLには本文を一切置かない。
-    var _guideCache = null;
-    async function openGuide() {
-      var modal = document.getElementById("guideModal");
-      var body = document.getElementById("guideBody");
-      if (!modal || !body) return;
-      modal.style.display = "flex";
-      if (_guideCache) { body.innerHTML = _guideCache; return; }
-      // ログインの前（ログインの画面の帯から押した）: 本文は窓口がログインを確かめてから渡すので、先にログインを案内する（「期限が切れました」と出さない）
-      if (!appSession && !readSession_().session) { body.textContent = 'ご利用ガイドは、ログインしてからご覧いただけます。「Googleでログイン」を押してください。'; return; }
-      body.innerHTML = '<p style="color:#64748b;">ご利用ガイドを読み込んでいます…</p>';
-      try {
-        var g = await callGAS('getGuide');
-        _guideCache = (g && g.html) || '';
-        body.innerHTML = _guideCache;
-      } catch (e) {
-        if (e && e.sessionExpired) { body.innerHTML = ''; return; }
-        body.innerHTML = '<p style="color:#b91c1c;">ご利用ガイドを取得できませんでした：'
-          + esc_((e && e.message) || e) + '<br>時間をおいて再度お試しください。</p>';
-      }
-    }
-    function closeGuide() {
-      var m = document.getElementById("guideModal");
-      if (m) m.style.display = "none";
-    }
+    // 利用ガイド（v2.12）: 別のページ guide.html（新しいタブ）。本文はログインの後に窓口から受け取る（公開の画面に本文を置かない）。
+    //   ポータルのボタンは index.html?guide=1 で開く → ログインの後に guide.html へ移る（下の GUIDE_FLAG_KEY）。
 
     function getQtyOnProduct(date, productCode) {
       for (var i = 0; i < rawOrders.length; i++) {

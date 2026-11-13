@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <!-- 利用ガイドの入れ物（v2.12）。本文（言葉）はここに置かない＝ログインの後に窓口（getGuide）から、その人の役割の節だけを受け取る。
+       写真は作り物のデータで撮った物だけ（guide-img・tests/guide_shots.js が作る）。外の部品は読まない。 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'self' https://script.google.com https://script.googleusercontent.com; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>テンチャク【惣菜】利用ガイド</title>
+  <link rel="stylesheet" href="guide.css?v=2.12">
+  <script src="guide-img/figs.js?v=2.12" defer></script>
+  <script src="guide.js?v=2.12" defer></script>
+</head>
+<body class="guide-page">
+  <header class="gtop">
+    <a class="gbrand" href="index.html">テンチャク【惣菜】</a><span class="gname">利用ガイド</span>
+    <span class="gwho" id="guide-who" hidden></span>
+    <span class="gspacer"></span>
+    <a class="gbtn" href="index.html">← 画面へ<span class="g-wide">戻る</span></a>
+  </header>
+  <div class="guide-scroll" id="guide-scroll">
+    <p id="guide-status" class="guide-status is-loading" role="status">読み込んでいます…</p>
+    <div id="guide-root" class="guide-layout" hidden>
+      <aside class="guide-side">
+        <div class="gnav">
+          <button type="button" id="g-back" disabled>← ひとつ前に戻る</button>
+          <button type="button" id="g-top">↑ TOPに戻る</button>
+        </div>
+        <nav id="guide-toc" class="guide-toc" aria-label="目次"></nav>
+      </aside>
+      <main id="guide-content" class="guide-content"></main>
+    </div>
+  </div>
+  <div id="g-toast" class="gtoast" role="status" hidden></div>
+</body>
+</html>
