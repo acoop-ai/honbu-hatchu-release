@@ -4,7 +4,9 @@
 //   節 = { id, title, fig: 図の名前, steps: [{ h: 見出し, t: 補い }]（図の番号の丸 ①②… の説明・順番が番号）, items: [短い文], table: { head, rows }, forWho }
 //   図の名前は、下の FIGS（流れの図）と guide-img/figs.js（作り物のデータの写真と丸の位置・tests/guide_shots.js が作る）にある物だけを出す。
 //   窓口の文字は全部 textContent（HTML として入れない）。見出しの番号はここで振る（節を減らしても番号がずれない）。
-//   型: 左に目次（上に「ひとつ前に戻る」「TOPに戻る」）・右に本文・双方向に連動。移るときは滑らせて、着いた所を光らせる。
+//   型: 左に目次・右に本文・双方向に連動。移るときは滑らせて、着いた所を光らせる。
+//   v2.13: 「ひとつ前に戻る」「TOPに戻る」は上の帯の中（目次・本文を送っても同じ所で押せる＝原則0）。待つ間は本文の場所の真ん中にハチ（ミツバチの部品）・
+//          30 秒・通信の失敗は困り顔のハチと「もう一度読み込む」。いちばん下に節「待つ間のハチの絵」（画面の側の節＝窓口は変えない）と、生成AIの明示の1行。
 (function () {
   // 窓口のアドレス（index.html の CONFIG.GAS_URL と同じ・tests/guide_test.js が同じかを確かめる）とログインの札の置き場（index.html と同じ）
   var GAS_URL = 'https://script.google.com/macros/s/AKfycbwhb1kd2Zp12nSdBiNo3Ac87TBLd8pjw2gYX6OVQEANfJcyzdIsmNIADWbjgE_xtn4/exec';
@@ -193,6 +195,34 @@
   narrow.addEventListener('change', setTableTop);
   window.addEventListener('resize', setTableTop);
 
+  // 節「待つ間のハチの絵」（v2.13）: 出る3つの場面（止まった絵に番号の丸）・選ぶ所（もふ／むぎわら）・見本の入口（画面のハチの見本が開く）
+  function beeSection(n) {
+    var M = window.Mitsubachi;
+    var sec = el('section', 'guide-section gbee'); sec.id = 'g-bee';
+    var h2 = el('h2', '', '待つ間のハチの絵'); h2.dataset.n = String(n); sec.append(h2);
+    var cards = el('ol', 'gbee-scenes');
+    [['F', '', '長い待ち', '読み込みに 0.3 秒より長くかかったとき。8 の字に飛びます。8 秒を超えると「時間がかかっています」'],
+      ['F', 'sad', 'つながらない・30 秒', '通信が切れた・30 秒たっても返事が無いとき。「もう一度」で続きから（ログインし直さなくてよい）'],
+      ['3F', '', '空', '発注がまだ無い・絞り込みで0件のとき。「読み込み直す」「絞り込みを外す」']].forEach(function (x, i) {
+      var li = el('li', 'gbee-scene'); li.append(num(i + 1));
+      var b = M.bee({ view: x[0], mood: x[1], size: 's56' }); b.setAttribute('aria-hidden', 'true');
+      li.append(b, el('strong', '', x[2]), el('span', 'gbee-t', x[3]));
+      cards.append(li);
+    });
+    sec.append(cards);
+    var pick = el('div', 'gbee-pick');
+    pick.append(el('p', 'gbee-pick-title', 'ハチの絵を選ぶ（押すと、すぐ替わります）'));
+    M.picker(pick, { label: 'ハチの絵を選ぶ' });
+    var demo = el('a', 'gbee-demo', '▶ ハチの見本を見る'); demo.href = 'index.html?beedemo=1';
+    pick.append(demo, el('span', 'gbee-demo-t', '画面が開いて、14 の場面を1つずつ見られます（見るだけ）'));
+    sec.append(pick);
+    var ul = el('ul', 'gnotes');
+    ['選んだ絵は、このパソコンに覚えます。店のパソコンはみんなで使うので、選ぶと、そのパソコンを使う全員の絵が替わります（テンチャク・番号表など、同じ所の画面は全部同じ絵）。',
+      '0.3 秒より早く終わるときは、何も出ません。ログインの期限・使えないアカウントなど、人がすることのお知らせには、ハチは出しません（字だけ）。',
+      '画面の右上のアカウント（▾）からも、選ぶ・見本を見るができます。'].forEach(function (t) { ul.append(el('li', '', t)); });
+    sec.append(ul);
+    return sec;
+  }
   var textList = function (a) { return Array.isArray(a) ? a.filter(function (x) { return typeof x === 'string' && x; }) : []; };
   var stepsOf = function (a) { return Array.isArray(a) ? a.filter(function (s) { return s && typeof s.h === 'string'; }).map(function (s) { return { h: s.h, t: typeof s.t === 'string' ? s.t : '' }; }) : []; };
   function render(g) {
@@ -221,6 +251,16 @@
       if (s.table && typeof s.table === 'object') sec.append(tableFig(s.table));
       box.append(sec);
     });
+    // いちばん下: 待つ間のハチの絵（v2.13・画面の側の節＝窓口を貼り直さない。中身は公開の部品の説明だけ）
+    if (window.Mitsubachi) {
+      n++;
+      var bl = n + ' 待つ間のハチの絵'; labels.bee = { n: n, label: bl };
+      if (lastFor) toc.append(el('div', 'tgroup', 'どなたでも'));
+      var ba = el('a'); ba.href = '#g-bee'; ba.dataset.id = 'bee'; ba.append(el('span', 'tn', n), el('span', '', '待つ間のハチの絵'));
+      ba.addEventListener('click', function (e) { e.preventDefault(); jump('bee', bl); }); toc.append(ba);
+      box.append(beeSection(n));
+    }
+    var credit = el('p', 'gcredit', '生成物の作成にAIを利用しています。'); box.append(credit);   // 社内の生成AI利用ガイドライン 6.(4)・いちばん最後に小さく
     // 表の行 → くわしい節（番号は描いた節から。返されていない節を指す札は外す）
     box.querySelectorAll('.gtable .ggo').forEach(function (b) {
       var to = own(labels, b.dataset.go) ? labels[b.dataset.go] : null, tr = b.closest('tr');
@@ -230,39 +270,87 @@
     });
     status.hidden = true; document.getElementById('guide-root').hidden = false;
     setTableTop(); spy();
+    // 画面から戻ってきた（guide.html#g-bee など）: その節へ滑らせて着く（ひとつ前に戻るの履歴は積まない）
+    var hid = String(location.hash || '').replace(/^#g-/, '');
+    if (hid && own(labels, hid)) {
+      var hs = document.getElementById('g-' + hid); pinned = hid; setCurrent(hid);
+      // 画面の外の節は大きさが仮＝着いた次のこまで、描いた節の分だけ測り直す（jump と同じ）
+      var fix = function (k) { requestAnimationFrame(function () { if (pinned !== hid) return; var d = targetOf(hs) - scroller.scrollTop; if (Math.abs(d) > 1) { scroller.scrollTop += d; if (k > 0) fix(k - 1); } }); };
+      glideTo(function () { return targetOf(hs); }, function () { fix(3); setTimeout(function () { fix(2); }, 250); flash(hs); });
+    }
   }
 
   function session() { try { var o = JSON.parse(localStorage.getItem(SESSION_STORE_KEY) || 'null'); return o && typeof o.t === 'string' && Date.now() < Number(o.e) - 60000 ? o.t : ''; } catch (_) { return ''; } }
   // 窓口が札を断った（7日を過ぎた・止められた）: 端末の札を捨てる（送った札のときだけ＝別のタブで入り直した新しい札は消さない。画面の clearSession_ と同じ）
   function dropSession(sent) { try { var o = JSON.parse(localStorage.getItem(SESSION_STORE_KEY) || 'null'); if (o && o.t === sent) localStorage.removeItem(SESSION_STORE_KEY); } catch (_) { /* 読めない端末 */ } }
-  // ログインしていない・期限が切れた: 画面でログインすると、このページに戻ってくる（index.html?guide=1）
-  // 待っている間は、知らせの欄に回る印（.is-loading）。8 秒で「時間がかかっています」、30 秒で止めて「もう一度読み込む」
-  function done_(nodes) { status.classList.remove('is-loading'); status.replaceChildren.apply(status, nodes); }
+
+  // ------------------------------------------------------------ 待つ間（v2.13・ハチ）: 本文の場所の真ん中に、8 の字に飛ぶハチと「利用ガイドを読み込んでいます…」（0.3 秒たってから）。
+  //   8 秒で「時間がかかっています」・30 秒で待つのをやめて、困り顔のハチと理由と「もう一度読み込む」（通信の失敗・窓口の混雑も同じ）。
+  //   ログインが要る・期限が切れた（人がすること）は、前と同じ字とリンク（ハチなし）。部品が読めない端末は前と同じ回る印と字
+  var MB = window.Mitsubachi || null;
+  var WAIT_TEXT = '利用ガイドを読み込んでいます…';
+  var waitH = null;
+  function placeBox() { status.classList.remove('is-loading'); status.classList.add('is-wait'); status.replaceChildren(); var p = el('div', 'wait-place'); status.append(p); return p; }
+  function showWait() {
+    if (MB) { waitH = MB.wait(placeBox(), { text: WAIT_TEXT }); return; }
+    status.classList.add('is-loading'); status.replaceChildren(el('span', 'guide-status-text', WAIT_TEXT));
+    waitH = { end: function () {} , timer: setTimeout(function () { var t = status.querySelector('.guide-status-text'); if (t) t.textContent = WAIT_TEXT + '（時間がかかっています。通信を確かめています）'; }, 8000) };
+  }
+  function endWait() { if (waitH) { if (waitH.timer) clearTimeout(waitH.timer); waitH.end(); waitH = null; } }
+  // 文字だけの知らせ（人がすること・読めない形）
+  function done_(nodes) { endWait(); status.classList.remove('is-loading', 'is-wait'); status.replaceChildren.apply(status, nodes); }
   function say_(text) { done_([document.createTextNode(text)]); }
-  function retryLink() { var a = el('a', '', 'もう一度読み込む'); a.href = 'guide.html'; return a; }
   function askLogin(msg) { done_([document.createTextNode(msg + ' '), Object.assign(el('a', '', '画面でログインする'), { href: 'index.html?guide=1' })]); }
+  // やり直せば直る失敗（通信・30 秒・混雑）: 同じ所に困り顔のハチ・理由・「もう一度読み込む」（このページのまま読み直す）
+  function showRetry(title, text) {
+    endWait();
+    if (!MB) { done_([document.createTextNode(title + '。' + text + ' '), Object.assign(el('a', '', 'もう一度読み込む'), { href: 'guide.html' })]); return; }
+    MB.error(placeBox(), { title: title, text: text, retryLabel: 'もう一度読み込む', onRetry: function () { start(); }, closeLabel: '画面へ戻る', onClose: function () { location.href = 'index.html'; }, size: 's64' });
+    var b = status.querySelector('button'); if (b) b.focus();
+  }
+  var NET = { timeout: '30 秒たっても返事がありませんでした。通信を確かめて、もう一度お試しください。', offline: '通信できませんでした。電波やネットワークを確かめて、もう一度お試しください。', busy: '窓口が混み合っています。少し待ってから、もう一度お試しください。' };
   function start() {
     var s = session(); if (!s) { askLogin('ログインすると、利用ガイドを表示します。'); return; }
+    showWait();
     var ctl = typeof AbortController === 'function' ? new AbortController() : null;
-    var slow = setTimeout(function () { status.textContent = '読み込んでいます…（時間がかかっています。通信を確かめています）'; }, 8000);
-    var stop = setTimeout(function () { if (ctl) ctl.abort(); }, 30000);
-    var end = function () { clearTimeout(slow); clearTimeout(stop); };
+    var gaveUp = false;
+    var stop = setTimeout(function () { gaveUp = true; if (ctl) ctl.abort(); }, 30000);
+    var net = function (kind) { var e = new Error(NET[kind]); e.net = kind; return e; };
     fetch(GAS_URL, { method: 'POST', cache: 'no-store', redirect: 'follow', headers: { 'Content-Type': 'text/plain;charset=UTF-8' }, body: JSON.stringify({ action: 'getGuide', session: s }), signal: ctl ? ctl.signal : undefined })
-      .then(function (res) { if (!res.ok) throw new Error('HTTP ' + res.status); return res.json(); })
+      .catch(function () { throw net(gaveUp ? 'timeout' : 'offline'); })
+      .then(function (res) { if (!res.ok) throw net(res.status >= 500 || res.status === 429 ? 'busy' : 'offline'); return res.json().catch(function () { throw net(gaveUp ? 'timeout' : 'busy'); }); })
       .then(function (out) {
-        end();
+        clearTimeout(stop);
+        if (out && (out.code === 'BUSY' || out.error === 'BUSY')) { showRetry('利用ガイドを開けませんでした', NET.busy); return; }
         if (!out || out.error) { if (out && out.code === 'SESSION') { dropSession(s); askLogin(String(out.error)); } else say_('利用ガイドを読めませんでした。開き直してください。' + (out && out.error ? '（' + out.error + '）' : '')); return; }
         var g = out.result || {};
         // 窓口が v2.11 以前（本文を html で返す）: 画面だけ先に公開した形。画面と同じ言い方で止める
         if (!Array.isArray(g.sections) && typeof g.html === 'string') { say_('ログインの窓口（GAS）が、まだ新しい版になっていません（E-GAS-OLD）。管理担当へ連絡してください。'); return; }
         if (!Array.isArray(g.sections) || !g.sections.length) { say_('利用ガイドを読めませんでした。開き直してください。'); return; }
-        status.classList.remove('is-loading');
+        endWait();
+        status.classList.remove('is-loading', 'is-wait');
         render(g);
       })
       .catch(function (e) {
-        end();
-        done_([document.createTextNode((e && e.name === 'AbortError' ? '30 秒たっても返事がありませんでした。' : '利用ガイドを読み込めませんでした。') + '通信を確かめて、 '), retryLink()]);
+        clearTimeout(stop);
+        if (e && e.net) { showRetry('利用ガイドを開けませんでした', e.message); return; }
+        say_('利用ガイドを読めませんでした。開き直してください。');
       });
   }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+
+  // ------------------------------------------------------------ 新しい版の自動の読み直し（v2.13・画面と同じ ver.js と比べる）。開いた直後でまだ何も押していない → 1回だけ読み直す／途中 → 知らせだけ
+  var GUIDE_VER = '2.13', VER_KEY = 'tenchaku_ver_reloaded_guide', touched = false, openedAt = Date.now();
+  ['pointerdown', 'keydown', 'wheel'].forEach(function (ev) { window.addEventListener(ev, function () { touched = true; }, { capture: true, passive: true }); });
+  window.__tenchaVer = function (v) {
+    v = String(v || ''); if (!/^[0-9]+(\.[0-9]+){1,3}$/.test(v)) return;
+    if (v === GUIDE_VER) { try { sessionStorage.removeItem(VER_KEY); } catch (_) { } return; }
+    var tried = ''; try { tried = sessionStorage.getItem(VER_KEY) || ''; } catch (_) { tried = v; }
+    if (!touched && Date.now() - openedAt < 20000 && tried !== v) { try { sessionStorage.setItem(VER_KEY, v); } catch (_) { } location.reload(); return; }
+    say('新しい版があります（v' + v + '）。読み直すと新しいガイドになります');
+  };
+  function verCheck() { var sc = document.createElement('script'); sc.src = 'ver.js?t=' + Date.now(); sc.async = true; sc.onload = sc.onerror = function () { sc.remove(); }; document.head.append(sc); }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') verCheck(); });
+
+  function boot() { verCheck(); start(); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else boot();
 })();

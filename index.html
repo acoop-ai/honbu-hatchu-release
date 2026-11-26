@@ -3,6 +3,8 @@
 <head>
   <base target="_top">
   <meta charset="utf-8">
+  <!-- v2.13: 電話でも幅に合わせて描く（前は 980 の幅で縮めて描いていた）。狭い幅では上の帯と絞り込みの帯を詰めて、表の枠に高さを残す（下の @media (max-width: 760px)） -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>テンチャク【惣菜】</title>
   <!-- Google Fonts (Outfit & Noto Sans JP) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -10,7 +12,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- Google Identity Services (GitHub Pages 版 4ドメイン認証) -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
-  
+  <!-- 待つ間・つながらないとき・空のときのハチ（v2.13）。共通の部品 _共通\ミツバチ の写し（make_copies.py が書く・手で直さない）。同じ所の物だけを読む（外から読む物は足さない） -->
+  <link rel="stylesheet" href="mitsubachi.css?v=0.3.1">
+  <script src="mitsubachi.js?v=0.3.1" defer></script>
+  <script src="bee-demo.js?v=2.13" defer></script>
+
   <style>
     /* =========================================================================
      * Premium High-Contrast Light Theme Design System (v1.50)
@@ -176,6 +182,48 @@
       background: #f1f5f9;
       font-size: 15px;
     }
+    .btn:disabled { opacity: .5; cursor: default; box-shadow: none; transform: none; }
+
+    /* 上の帯（v2.13）: ページを送っても上に残す（「← ひとつ前に戻る」「↑ TOP」を、いつも同じ所で押せる＝ui_design_principles 原則0） */
+    header#topbar { position: sticky; top: 0; z-index: 900; gap: 10px; }
+    .nav-fixed { display: flex; gap: 6px; align-items: center; margin-right: auto; margin-left: 4px; }
+    .nav-fixed .nav-btn { white-space: nowrap; padding: 5px 10px; }
+    /* 右上のアカウントのメニュー（▾）: ログイン中のアカウント・待つ間のハチの絵（もふ／むぎわら）・ハチの見本 */
+    .acct-wrap { position: relative; }
+    .acct-btn { font-size: 12px; font-weight: 700; color: #334155; background: #ffffff; border: 1.5px solid #94a3b8; border-radius: 6px; padding: 5px 10px; cursor: pointer; white-space: nowrap; max-width: 280px; overflow: hidden; text-overflow: ellipsis; }
+    .acct-btn:hover { background: #f1f5f9; }
+    .acct-menu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 950; min-width: 300px; max-width: calc(100vw - 16px); background: #ffffff; border: var(--card-border-thick); border-radius: 8px; box-shadow: var(--shadow-solid); padding: 8px; font-size: 13px; }
+    .acct-menu[hidden] { display: none; }
+    .acct-menu .acct-who { padding: 4px 6px 8px; color: var(--text-muted); border-bottom: 1px solid #e2e8f0; word-break: break-all; }
+    .acct-menu .acct-who b { color: var(--text-main); }
+    .bee-pick { --mb-ink: var(--text-main); --mb-line: #cbd5e1; --mb-btn-edge: #1e3a8a; padding: 8px 4px 4px; }
+    .bee-pick .bee-pick-title { margin: 0 6px 6px; font-weight: 700; font-size: 13px; }
+    .bee-pick .mb-pick { padding: 0 6px; flex-wrap: nowrap; white-space: nowrap; }
+    .bee-pick .mb-pick-note { margin: 6px 6px 0; }
+    .bee-pick .bee-demo-open { display: block; width: 100%; text-align: left; background: none; border: 0; border-top: 1px dashed #cbd5e1; padding: 8px 6px 4px; margin-top: 8px; cursor: pointer; font: inherit; color: var(--text-main); }
+    .bee-pick .bee-demo-open:hover { background: #eef2f7; }
+    .bee-pick .bee-demo-open strong { display: block; font-size: 13px; }
+    .bee-pick .bee-demo-open small { display: block; font-size: 12px; color: var(--text-muted); line-height: 1.45; }
+    /* 新しい版の知らせ（ver.js と比べて違うとき・使っている途中だけ。開いた直後は黙って1回読み直す） */
+    .ver-note { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; background: #fff7ed; border: 2px solid #c2410c; border-radius: 8px; padding: 8px 14px; font-size: 13px; font-weight: 700; color: #7c2d12; }
+    .ver-note[hidden] { display: none; }
+    @media (max-width: 760px) {
+      /* 電話の幅: 上の帯は「名前・版」「戻る・TOP・アカウント・店・ガイド・…」の2〜3行・絞り込みは2列（表の枠に高さを残す） */
+      .app-container { padding: 6px; gap: 6px; }
+      header#topbar { flex-wrap: wrap; padding: 6px 8px; gap: 4px 6px; }
+      .brand-logo { font-size: 17px; }
+      .nav-fixed { margin: 0; }
+      .nav-fixed .nav-btn, .nav-actions .btn { padding: 4px 8px; font-size: 12px; }
+      .nav-actions { flex-wrap: wrap; justify-content: flex-start; gap: 4px; }
+      #currentStoreDisplay { margin-right: 0 !important; font-size: 12px !important; padding: 3px 6px !important; }
+      .acct-btn { max-width: 140px; padding: 4px 8px; }
+      .filters-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 8px; padding: 8px 10px; }
+      .filters-bar .filter-group { width: auto !important; min-width: 0; }
+      .filters-bar .filter-group label { margin-bottom: 2px; }
+      .filters-bar .select-custom, .filters-bar .input-custom { padding: 5px 8px; }
+      .filter-actions { grid-column: 1 / -1; margin-left: 0; flex-wrap: wrap; gap: 6px; }
+      .filter-actions .btn { padding: 4px 8px; font-size: 12px; }
+    }
 
     /* Panels & Views */
     .panel {
@@ -306,8 +354,9 @@
       box-shadow: var(--shadow-solid);
       overflow: auto;
       width: 100%;
-      /* 下の「画面に収める」が効かない低い画面だけの形: ページを送れば表の枠が画面いっぱいに収まり、下の横のバーまで見える */
-      max-height: calc(100vh - 20px);
+      /* 下の「画面に収める」が効かない低い画面だけの形: ページを送れば表の枠が画面いっぱいに収まり、下の横のバーまで見える。
+         v2.13: 上の帯がページを送っても上に残る（sticky）ので、その高さ（約 55px）といちばん下の1行の分を引く＝見出しの行が上の帯の下に隠れない */
+      max-height: calc(100vh - 100px);
     }
 
     /* 発注の表の画面は、画面の高さにぴったり収める（2026-11-12）。
@@ -636,22 +685,42 @@
       align-items: center;
     }
 
-    /* Loading Overlay */
+    /* 長い待ちの幕（v2.13・ハチ）: 押した直後は透明（押せなくするだけ）。0.3 秒を超えたら薄く敷いて、字の横に 8 の字に飛ぶハチのカード。
+       8 秒で字の下に「時間がかかっています」。30 秒は通信を打ち切って、同じ幕にハチの困り顔・理由・「もう一度」（やり直せば直る失敗だけ）。
+       幕を出すか消すかは今までどおり style.display（flex／none）。ハチの部品が読めない端末は、前と同じ回る印と字。
+       前の版の「ぼかし」（backdrop-filter）は、ハチが動く間に毎コマ下の画面を描き直すので外した */
     .loading-overlay {
       position: fixed;
       top: 0;
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(2px);
+      background: transparent;
       z-index: 9999;
       display: none;
       justify-content: center;
       align-items: center;
-      flex-direction: column;
-      gap: 15px;
+      padding: 12px;
     }
+    .loading-overlay.is-shown { background: rgba(255, 255, 255, 0.72); }
+    .loading-overlay.is-error { background: rgba(226, 232, 240, 0.82); }
+    .loading-card {
+      --mb-surface: #ffffff; --mb-ink: var(--text-main); --mb-muted: var(--text-muted); --mb-line: #cbd5e1;
+      --mb-btn-bg: #2563eb; --mb-btn-ink: #ffffff; --mb-btn-edge: #0f172a;
+      background: #ffffff; border: var(--card-border-thick); border-radius: 10px; box-shadow: var(--shadow-solid); max-width: min(560px, 100%);
+    }
+    .loading-overlay:not(.is-shown) .loading-card { visibility: hidden; }
+    .loading-overlay.is-plain .loading-card { display: flex; align-items: center; gap: 14px; padding: 14px 20px; }   /* 部品が読めない端末（前の形） */
+    .loading-plain-err { display: grid; gap: 8px; justify-items: start; padding: 14px 20px; }
+    .loading-plain-err p { margin: 0; color: var(--text-muted); }
+
+    /* 空（発注データがまだ無い・絞り込みに当たらない）: 表の中の1行でなく、表の枠の中にカード（止まったハチ・ひとこと・次の一手） */
+    .grid-empty { --mb-surface: #ffffff; --mb-ink: var(--text-main); --mb-muted: var(--text-muted); --mb-line: #cbd5e1;
+      --mb-btn-bg: #2563eb; --mb-btn-ink: #ffffff; --mb-btn-edge: #0f172a; padding: 28px 16px; display: flex; justify-content: center; }
+    .grid-empty[hidden] { display: none; }
+    .grid-empty .mb-empty { max-width: 560px; }
+    .grid-empty-plain { display: grid; gap: 8px; justify-items: start; max-width: 560px; }
+    .grid-empty-plain p { margin: 0; color: var(--text-muted); }
 
     .spinner {
       width: 50px;
@@ -756,24 +825,91 @@
       background: var(--accent-amber);
       color: #ffffff;
     }
+
+    /* 待ちのカードを、待っている所（本文の場所）の真ん中に（番号表 0.2.8 と同じ型・ハチの見本の「利用ガイドを開くとき」） */
+    .wait-place { flex: 1; min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 16px;
+      --mb-surface: #ffffff; --mb-ink: var(--text-main); --mb-muted: var(--text-muted); --mb-line: #cbd5e1; --mb-btn-bg: #2563eb; --mb-btn-ink: #ffffff; --mb-btn-edge: #0f172a; }
+    .wait-place .mb-wait, .wait-place .mb-err { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, .08); max-width: min(560px, 100%); }
+    /* ハチの見本（v2.13・番号表 0.2.9 と同じ形）: 上の帯と同じ所に見本の帯・左に場面の一覧（14）・場面の上に進める釦と説明（大きめ）。
+       本物の幕（#loadingOverlay）は、見本の間だけ場面の置き場（一覧の右・説明の下）に収める（bee-demo.js が上と左を決める） */
+    body.bee-demo-on .loading-overlay { top: var(--bd-top, 0px); left: var(--bd-left, 0px); width: auto; height: auto; right: 0; bottom: 0; }
+    body.bee-demo-on .app-container { visibility: hidden; }   /* 見本の間、元の画面は見本の下（押せない）＝見えない形にする（形は残す＝見本の帯の位置を「← ひとつ前に戻る」に合わせるのに使う）。戻ると元のまま */
+    .bee-demo-bar { position: fixed; top: 0; left: 0; right: 0; z-index: 10002; display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; padding: 6px 26px; min-height: 44px; background: #2b2418; color: #ffffff; }
+    .bee-demo-bar .bd-badge { background: #f0b531; color: #3b2a1a; border-radius: 6px; padding: 1px 8px; font-weight: 800; font-size: 13.5px; white-space: nowrap; }
+    .bee-demo-bar .bd-nav { margin-right: 0; }
+    .bee-demo-bar .bd-lead { font-size: 14px; min-width: 0; }
+    .bee-demo-bar .bd-keys { margin-left: auto; font-size: 13px; opacity: .9; white-space: nowrap; }
+    .bee-demo-list { position: fixed; left: 0; bottom: 0; width: 250px; z-index: 10001; overflow: auto; overscroll-behavior: contain; padding: 8px 8px 16px; background: #fffdf5; border-right: 1px solid #e8d49a; }
+    .bee-demo-list[hidden] { display: none; }
+    .bee-demo-list .bdl-title { margin: 2px 6px 4px; font-weight: 800; font-size: 15px; color: #3b2a1a; }
+    .bee-demo-list .bdl-head { margin: 8px 6px 2px; font-size: 13px; font-weight: 700; color: #6b4e16; }
+    .bee-demo-list .bdl-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 38px; margin-bottom: 2px; padding: 4px 8px; text-align: left; background: none; border: 0; border-left: 4px solid transparent; border-radius: 6px; color: var(--text-main); font: inherit; font-size: 14.5px; cursor: pointer; }
+    .bee-demo-list .bdl-item:hover { background: #fff1c9; }
+    .bee-demo-list .bdl-item[aria-current="step"] { background: #ffe8a3; border-left-color: #c98a06; font-weight: 700; }
+    .bee-demo-list .bdl-n { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: #ffffff; border: 1px solid #c98a06; color: #6b4e16; font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .bee-demo-list .bdl-item[aria-current="step"] .bdl-n { background: #c98a06; color: #ffffff; }
+    .bee-demo-list.is-drop { width: auto; right: 0; bottom: auto; max-height: 60vh; border-right: 0; border-bottom: 1px solid #e8d49a; box-shadow: 0 8px 18px rgba(0, 0, 0, .18); }
+    .bee-demo-cap { position: fixed; left: 0; right: 0; z-index: 10001; display: grid; gap: 4px; padding: 10px 18px; background: #fff8e1; color: #3b2a1a; border-bottom: 1px solid #e8d49a; }
+    .bee-demo-cap .bd-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; }
+    .bee-demo-cap .btn { min-height: 38px; }
+    .bee-demo-cap .btn[hidden] { display: none; }
+    .bee-demo-cap .bd-count { min-width: 4.2em; text-align: center; font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .bee-demo-cap .bd-autobox { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
+    .bee-demo-cap .bd-auto[aria-pressed="true"], .bee-demo-cap .bd-pause[aria-pressed="true"] { background: #f0b531; color: #3b2a1a; }
+    .bee-demo-cap .bd-left { font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; min-width: 0; }
+    .bee-demo-cap .bd-title { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; }
+    .bee-demo-cap .bd-style { border: 1px solid #c98a06; border-radius: 999px; padding: 0 10px; font-size: 14px; white-space: nowrap; background: #ffffff; }
+    .bee-demo-cap .bd-name { font-size: 21px; }
+    .bee-demo-cap .bd-when { margin: 0; font-size: 17px; line-height: 1.5; max-width: 60em; }
+    .bee-demo-cap .bd-note { margin: 0; font-size: 14px; color: #5d4a1f; max-width: 70em; }
+    .bee-demo-cap .bd-note[hidden], .bee-demo-cap .bd-still[hidden] { display: none; }
+    .bee-demo-cap .bd-still { margin: 0; font-size: 14px; font-weight: 700; }
+    .bee-demo-shield { position: fixed; inset: 0; z-index: 9990; background: transparent; }
+    .bee-demo-stage { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9995; background: var(--bg-main); overflow: auto; }
+    .bee-demo-stage.is-guide { background: #ffffff; display: flex; flex-direction: column; }
+    @media (max-width: 760px) {
+      .bee-demo-bar { padding: 5px 8px; gap: 4px 8px; }
+      .bee-demo-bar .bd-lead, .bee-demo-bar .bd-keys { display: none; }   /* スマホの幅: 帯は ← 元の画面へ戻る と名前だけ（キーは無い） */
+      .bee-demo-cap { padding: 8px 10px; }
+      .bee-demo-cap .bd-count { font-size: 19px; min-width: 3.6em; }
+      .bee-demo-cap .bd-autobox { margin-left: 0; }
+      .bee-demo-cap .bd-long { display: none; }
+      .bee-demo-cap .bd-name { font-size: 18px; }
+      .bee-demo-cap .bd-when { font-size: 15.5px; }
+    }
+    /* 生成AIを使ったことの明示（社内の生成AI利用ガイドライン 6.(4)・画面のいちばん下に小さく1行） */
+    .genai-credit { margin: 0; text-align: right; font-size: 11px; color: #64748b; }
+    @media print { .genai-credit { display: block; } .nav-fixed, .acct-wrap, .ver-note { display: none !important; } }
   </style>
 </head>
 <body>
 
+  <!-- 長い待ちの幕（v2.13）: 中のカード（ハチと字・やり直せば直る失敗の「もう一度」）は台本が入れる -->
   <div class="loading-overlay" id="loadingOverlay">
-    <div class="spinner"></div>
-    <div class="loading-text" id="loadingText">読み込み中...</div>
+    <div class="loading-card" id="loadingCard"></div>
   </div>
 
   <div class="app-container">
     <!-- Header -->
-    <header>
+    <header id="topbar">
       <div class="brand">
         <div class="brand-logo">テンチャク【惣菜】</div>
-        <div class="system-badge" id="versionBadge" title="画面 v2.12（窓口の版はログインのあとに出ます）">v2.12</div>
+        <div class="system-badge" id="versionBadge" title="画面 v2.13（窓口の版はログインのあとに出ます）">v2.13</div>
       </div>
+      <!-- ひとつ前に戻る・TOP（v2.13）: 上の帯と一緒にいつも同じ所（原則0）。ひとつ前＝管理者同期 → 発注の表 → 店の選択 -->
+      <nav class="nav-fixed" aria-label="戻る">
+        <button type="button" class="btn btn-secondary nav-btn" id="navBack" onclick="navBack_()" disabled>← ひとつ前に戻る</button>
+        <button type="button" class="btn btn-secondary nav-btn" id="navTop" onclick="navTop_()" title="ページと表を、いちばん上へ">↑ TOP</button>
+      </nav>
       <div class="nav-actions">
-        <span id="userEmailDisplay" title="接続中のアカウント" style="font-size: 11px; color: #475569; margin-right: 10px; display: none;"></span>
+        <!-- 右上のアカウントのメニュー（v2.13）: ログイン中のアカウント・待つ間のハチの絵・ハチの見本 -->
+        <span class="acct-wrap" id="acctWrap" style="display: none;">
+          <button type="button" class="acct-btn" id="acctBtn" aria-haspopup="true" aria-expanded="false" aria-controls="acctMenu" onclick="toggleAcctMenu_()"><span id="userEmailDisplay" title="接続中のアカウント"></span> ▾</button>
+          <div class="acct-menu" id="acctMenu" hidden>
+            <div class="acct-who">ログイン中: <b id="acctMenuEmail"></b></div>
+            <div class="bee-pick" id="beePick"></div>
+          </div>
+        </span>
         <span id="currentStoreDisplay" style="font-size: 14px; font-weight: 900; display: none; color: #1e3a8a; background: #dbeafe; padding: 4px 10px; border-radius: 6px; border: 1.5px solid #1e3a8a; margin-right: 12px;"></span>
         <!-- 利用ガイドは別のページ（guide.html・新しいタブ）。本文はログインの後に窓口から受け取る（v2.12） -->
         <a class="btn btn-secondary" id="guideLink" href="guide.html" target="_blank" rel="noopener" style="text-decoration: none;">📖 利用ガイド</a>
@@ -781,6 +917,12 @@
         <button class="btn btn-danger" id="logoutBtn" style="display: none;" onclick="logout()">ログアウト</button>
       </div>
     </header>
+
+    <!-- 新しい版の知らせ（v2.13・ver.js と比べる）: 使っている途中に新しい版が出たときだけ。見ている所は消さない -->
+    <div class="ver-note" id="verNote" role="status" hidden>
+      <span id="verNoteText"></span>
+      <button type="button" class="btn btn-primary" id="verNoteBtn" onclick="location.reload()">読み直す</button>
+    </div>
 
     <!-- Main Screens -->
     
@@ -881,6 +1023,8 @@
         
         <!-- Grid Table Container -->
         <div class="grid-container">
+          <!-- 空（v2.13）: 発注データがまだ無い・絞り込みに当たらないときは、表の代わりに止まったハチとひとことと次の一手（表の中の1行にしない） -->
+          <div class="grid-empty" id="gridEmpty" hidden></div>
           <table class="grid-table" id="gridTable">
             <!-- 読み込み時に表示 -->
           </table>
@@ -922,7 +1066,7 @@
             <select class="select-custom" id="driveFileSelect" style="flex: 1;">
               <option value="">ファイルを検索中...</option>
             </select>
-            <button class="btn btn-secondary btn-refresh" onclick="scanDriveFiles()" title="Googleドライブを再検索">🔄</button>
+            <button class="btn btn-secondary btn-refresh" onclick="scanDriveFiles()" title="Googleドライブのファイルの一覧を読み直す">🔄</button>
           </div>
         </div>
         
@@ -936,6 +1080,7 @@
         <pre id="inspectOutput" style="display:none; margin-top:15px; padding:12px; background:#0f172a; color:#e2e8f0; border:2px solid #0f172a; border-radius:6px; font-size:11px; line-height:1.4; max-height:360px; overflow:auto; white-space:pre-wrap; word-break:break-all;"></pre>
       </div>
     </div>
+    <p class="genai-credit">生成物の作成にAIを利用しています。</p>
   </div>
 
   <!-- Modal for Memo Edit -->
@@ -1017,7 +1162,7 @@
       // acoop-ai.github.io はスマレコと同一オリジンのため、実績のある同じ Client ID を共用する
       GOOGLE_CLIENT_ID: '1072945615483-74jadmaet56chvhkfh2cpt4ae9dvh140.apps.googleusercontent.com',
       ALLOWED_DOMAINS: ['jaz-acoop.co.jp', 'jaz-acoop1.jp', 'jaz-acoop2.jp', 'jaz-acoop3.jp'],
-      APP_VERSION: '2.12'
+      APP_VERSION: '2.13'
     };
 
     // ===== ログインの札（v2.11: アプリの7日の札・スマレコ／テンチャク【畜産】と同じ型） =====
@@ -1167,23 +1312,42 @@
       if (my !== loginAttempt_) return;
       setBtn(false, '確かめています…');
       showAuthError_('');
+      try {
+        await finishLogin_(accessToken);
+      } finally {
+        accessToken = '';
+        setBtn(true, 'Googleでログイン');
+      }
+    }
+
+    /**
+     * Google の札を窓口へ渡して、アプリの札と店の一覧を1回の往復で受け取る（ログインの幕・v2.13 でハチ）。
+     *   通信の失敗・30 秒・窓口の混雑のときは、同じ幕にハチの困り顔と「もう一度」（Google の窓を開き直さずに続きから）。
+     *   Google の札はこの呼び出しの中だけに持つ（端末に残さない）。「閉じる」で捨てる。人が直す断り（会社の外など）は前と同じ字（ハチなし）
+     */
+    async function finishLogin_(googleToken) {
       showLoading('ログインしています…');
       try {
-        // Google の札を窓口へ渡して、アプリの札と店の一覧を1回の往復で受け取る。Google の札はここで捨てる（端末に残さない）
-        var r = await callGAS('startSession', { accessToken: accessToken }, { public: true });
-        accessToken = '';
+        var r = await callGAS('startSession', { accessToken: googleToken }, { public: true });
+        googleToken = '';
         saveSession_({ t: String(r.session || ''), e: Number(r.expiresAt) || (Date.now() + 7 * 86400000) });
         hideLoading();
         await onAuthed_(r);
       } catch (e) {
-        accessToken = '';
+        if (isRetryable_(e) && googleToken) {
+          showRetry({
+            title: 'ログインできませんでした', text: retryText_(e),
+            retry: function () { finishLogin_(googleToken); },
+            close: function () { googleToken = ''; showAuthError_('ログインを中止しました。もう一度「Googleでログイン」を押してください。', 'info'); }
+          });
+          return;
+        }
+        googleToken = '';
         hideLoading();
         var msg = (e && e.message) || String(e);
         if (/不明なアクション/.test(msg)) msg = 'ログインの窓口（GAS）が、まだ新しい版になっていません（E-GAS-OLD）。管理担当へ連絡してください。';
         else if (!(e && e.fromServer)) msg = 'ログインに失敗しました: ' + msg;
         showAuthError_(msg);
-      } finally {
-        setBtn(true, 'Googleでログイン');
       }
     }
 
@@ -1192,7 +1356,11 @@
       info = info || {};
       currentUserEmail = String(info.email || '').toLowerCase();
       var disp = document.getElementById('userEmailDisplay');
-      if (disp) { disp.textContent = '👤 ' + currentUserEmail; disp.style.display = 'inline'; }
+      if (disp) disp.textContent = '👤 ' + currentUserEmail;
+      var menuEmail = document.getElementById('acctMenuEmail');
+      if (menuEmail) menuEmail.textContent = currentUserEmail;
+      var wrap = document.getElementById('acctWrap');
+      if (wrap) wrap.style.display = currentUserEmail ? 'inline-block' : 'none';
       var acct = document.getElementById('accountLine');
       var acctEmail = document.getElementById('accountEmail');
       if (acctEmail) acctEmail.textContent = currentUserEmail;
@@ -1203,6 +1371,7 @@
       if (takeGuideFlag_()) { location.href = 'guide.html'; return; }
       if (info.stores && typeof info.stores === 'object') applyStores_(info.stores);
       else await loadInitialData_();
+      if (takeDemoFlag_() && window.TENCHA_BEE_DEMO) { showPanel('loginPanel'); window.TENCHA_BEE_DEMO.start({ fromGuide: true }); return; }   // 利用ガイドから「ハチの見本を見る」
       if (currentStoreCode && appSession) {
         enterStore_(currentStoreCode, currentStoreName);
       } else {
@@ -1241,6 +1410,21 @@
       try { if (sessionStorage.getItem(GUIDE_FLAG_KEY) === '1') { sessionStorage.removeItem(GUIDE_FLAG_KEY); return true; } } catch (_) { }
       return false;
     }
+    // ?beedemo=1（利用ガイドの節「待つ間のハチの絵」の「ハチの見本を見る」・v2.13）: ログインの後に1回だけハチの見本を開く（見本の「← 利用ガイドに戻る」でガイドへ戻る）
+    var DEMO_FLAG_KEY = 'honbu_open_beedemo';
+    (function rememberDemoFlag_() {
+      try {
+        var u = new URL(location.href);
+        if (u.searchParams.get('beedemo') !== '1') return;
+        sessionStorage.setItem(DEMO_FLAG_KEY, '1');
+        u.searchParams.delete('beedemo');
+        history.replaceState(null, '', u.pathname + (u.search ? u.search : '') + u.hash);
+      } catch (_) { /* 覚えられない端末: 右上のメニュー（▾）から開く */ }
+    })();
+    function takeDemoFlag_() {
+      try { if (sessionStorage.getItem(DEMO_FLAG_KEY) === '1') { sessionStorage.removeItem(DEMO_FLAG_KEY); return true; } } catch (_) { }
+      return false;
+    }
 
     /** 左上の版: 画面と窓口（GAS）の2つ。窓口の版は返事から（貼り直せたかを、画面から確かめられる） */
     function noteServerBuild_(build) {
@@ -1265,7 +1449,8 @@
           sessionUiTimer_ = null;
           hideLoading();
           closeAllModals_();
-          ['logoutBtn', 'currentStoreDisplay', 'userEmailDisplay', 'accountLine'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+          ['logoutBtn', 'currentStoreDisplay', 'acctWrap', 'accountLine'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+          closeAcctMenu_();
           applyHQPermission_(false, false);
           showPanel('authPanel');
           showAuthError_(SESSION_MSG, 'info');
@@ -1295,13 +1480,19 @@
       clickedDateSort = null; clickedProductSort = null;
       devInfoLoaded_ = false;
       applyHQPermission_(false, false);
-      ['userEmailDisplay', 'currentStoreDisplay', 'logoutBtn', 'accountLine'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+      ['acctWrap', 'currentStoreDisplay', 'logoutBtn', 'accountLine'].forEach(function (id) { var el = document.getElementById(id); if (el) el.style.display = 'none'; });
+      closeAcctMenu_();
       showPanel('authPanel');
       showAuthError_('サインアウトしました（この端末のログインを消しました）。共用のパソコンでは、ブラウザの Google からもログアウトしてください（次の方が Google の画面で、あなたのアカウントを選べないように）。', 'info');
     }
 
     // ===== GAS API 通信層（fetch版） =====
     //   opts.public … 札の要らない操作（startSession だけ）
+    //   opts.timeoutMs … 待つのをやめるまで（既定 30 秒＝フリーズに見せない決まり。取り込みだけ長い＝窓口では止められないので）
+    //   v2.13: 失敗に「やり直せば直るか」の印（retryable・kind）を付ける。やり直せば直る＝通信が切れた・30 秒・窓口の混雑・返事が読めない
+    //          （人が直す断り＝権限・入力・札の期限 は印なし＝前と同じお知らせ）。待つ幕はこの印を見て「もう一度」を出す
+    var GIVEUP_MS = 30000;
+    function netError_(kind, message) { var e = new Error(message); e.retryable = true; e.kind = kind; return e; }
     async function callGAS(action, data, opts) {
       data = data || {};
       var isPublic = !!(opts && opts.public);
@@ -1315,15 +1506,37 @@
         payload.session = appSession.t;
       }
       var sent = payload.session || '';
-      var res = await fetch(CONFIG.GAS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-        body: JSON.stringify(payload),
-        redirect: 'follow'
-      });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var json = await res.json();
+      var limit = opts && opts.timeoutMs !== undefined ? Number(opts.timeoutMs) : GIVEUP_MS;
+      var ctl = typeof AbortController === 'function' && limit > 0 ? new AbortController() : null;
+      var gaveUp = false;
+      var timer = ctl ? setTimeout(function () { gaveUp = true; ctl.abort(); }, limit) : 0;
+      var res, json;
+      try {
+        try {
+          res = await fetch(CONFIG.GAS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+            body: JSON.stringify(payload),
+            redirect: 'follow',
+            signal: ctl ? ctl.signal : undefined
+          });
+        } catch (_) {
+          throw gaveUp ? netError_('timeout', NET_MSG.timeout) : netError_('offline', NET_MSG.offline);
+        }
+        if (!res.ok) {
+          if (res.status >= 500 || res.status === 429) throw netError_('busy', NET_MSG.busy + '（' + res.status + '）');
+          throw new Error('HTTP ' + res.status);
+        }
+        try { json = await res.json(); }
+        catch (_) { throw gaveUp ? netError_('timeout', NET_MSG.timeout) : netError_('offline', NET_MSG.unreadable); }   // 窓口の止まった画面（混雑・時間切れ）など
+      } finally {
+        if (timer) clearTimeout(timer);
+      }
       if (json && json.error) {
+        // 窓口の混雑（ログインの重なり・ほかの取り込みの最中など）は、少し待ってやり直せば通る
+        if (json.code === 'BUSY' || json.error === 'BUSY' || /他の同期・初期化処理が進行中/.test(String(json.error))) {
+          throw netError_('busy', json.error === 'BUSY' ? NET_MSG.busy : String(json.error));
+        }
         // 札を送ったのに「認証失敗」: 窓口が札を知らない（窓口だけ前の版に戻した等）。期限切れと同じに扱う（ログインの画面へ・入り直すと E-GAS-OLD で分かる）
         var refused = json.code === 'SESSION' || (sent && String(json.error).indexOf('認証失敗') === 0);
         if (!isPublic && refused) {
@@ -1341,31 +1554,42 @@
     window.onload = async function () {
       if (leavingToGuide_) return;   // ?guide=1 でログイン済み: もう利用ガイドへ移っている
       try { localStorage.removeItem(OLD_TOKEN_STORE_KEY); } catch (_) {}   // v2.10 までの Google の札は使わない・残さない
+      verCheck_('open');   // 新しい版が出ていないか（ver.js・窓口の読み込みと並べて読む＝待ちを足さない）
       var saved = readSession_();
       if (saved.session) {
         appSession = saved.session;
         showPanel('loginPanel');
-        showLoading("店舗一覧を読み込んでいます...");
-        try {
-          var r = await callGAS('login', { withStores: true });   // 開いたときの記録・本部か・店の一覧を1回の往復で
-          hideLoading();
-          await onAuthed_(r);
-        } catch (e) {
-          hideLoading();
-          if (!(e && e.sessionExpired)) {
-            // 札は通ったが読めなかった（通信・窓口の一時的な失敗）: 止まったままに見せない。読み直しを案内し、サインアウトも押せるようにする
-            var sel = document.getElementById("storeSelect");
-            if (sel) sel.innerHTML = '<option value="">店舗一覧を読み込めませんでした（画面を読み込み直してください）</option>';
-            var acct = document.getElementById('accountLine'); if (acct) acct.style.display = 'block';
-          }
-          toastError_("店舗一覧の取得に失敗しました: ", e);
-        }
+        await openWithSession_();
         return;
       }
       if (saved.expired) clearSession_();
       showPanel('authPanel');
       if (saved.expired) showAuthError_(SESSION_MSG, 'info');   // 前の札が切れていた: 1回だけ知らせる
     };
+
+    /** 端末の札で開く（開いたときの記録・本部か・店の一覧を1回の往復で）。通信の失敗・30 秒・混雑は、同じ幕に「もう一度」（札は捨てない＝ログインし直さなくてよい） */
+    async function openWithSession_() {
+      showLoading("店舗一覧を読み込んでいます...");
+      try {
+        var r = await callGAS('login', { withStores: true });
+        hideLoading();
+        await onAuthed_(r);
+      } catch (e) {
+        var cantRead = function () {
+          // 札は通ったが読めなかった: 止まったままに見せない。読み直しを案内し、サインアウトも押せるようにする
+          var sel = document.getElementById("storeSelect");
+          if (sel) sel.innerHTML = '<option value="">店舗一覧を読み込めませんでした（画面を読み込み直してください）</option>';
+          var acct = document.getElementById('accountLine'); if (acct) acct.style.display = 'block';
+        };
+        if (isRetryable_(e)) {
+          showRetry({ title: '開けませんでした', text: retryText_(e), retry: openWithSession_, close: cantRead });
+          return;
+        }
+        hideLoading();
+        if (!(e && e.sessionExpired)) cantRead();
+        toastError_("店舗一覧の取得に失敗しました: ", e);
+      }
+    }
 
     // 開発者向け診断パネル：既定は畳む。開いたときだけ getDebugInfo を1回取得する（運用中は見えない）。
     var devInfoLoaded_ = false;
@@ -1402,8 +1626,7 @@
         hideLoading();
         applyStores_(stores);
       } catch (err) {
-        hideLoading();
-        toastError_("店舗一覧の取得に失敗しました: ", err);
+        failLoading_(err, { title: '店舗一覧を読み込めませんでした', prefix: "店舗一覧の取得に失敗しました: ", retry: loadInitialData_ });
       }
       // 診断情報は開発者向けパネルを「開いたとき」だけ取得する（onDevPanelToggle_）。既定は畳んで非表示。
     }
@@ -1539,6 +1762,7 @@
 
       currentStoreCode = code;
       currentStoreName = hsel.options[hsel.selectedIndex].textContent.split(" : ")[1];
+      document.getElementById("currentStoreDisplay").textContent = "店舗: " + currentStoreName;   // 読めなかったときも、上の帯と表の知らせの店をそろえる（v2.13）
       rememberLastStore_(code);
 
       // 並べ替え状態は店舗ごとにリセット
@@ -1576,6 +1800,8 @@
       // 発注の表の画面だけ、画面の高さに収める（表の枠の中だけを送る・CSS の .fit-screen）
       var app = document.querySelector(".app-container");
       if (app) app.classList.toggle("fit-screen", panelId === "dashboardPanel");
+      updateNav_(panelId);   // ← ひとつ前に戻る の行き先（押せない画面では薄く）
+      closeAcctMenu_();
     }
 
     function showDashboard() {
@@ -1622,8 +1848,7 @@
           select.appendChild(opt);
         });
       } catch (err) {
-        hideLoading();
-        toastError_("ドライブのファイル検索に失敗しました: ", err);
+        failLoading_(err, { title: 'ドライブのファイルを読めませんでした', prefix: "ドライブのファイル検索に失敗しました: ", retry: scanDriveFiles });
       }
     }
 
@@ -1645,8 +1870,10 @@
         latestViewStats = res.viewStats;
         fileMonths = res.fileMonths || {};
 
-        currentStoreName = res.storeName;
+        // その部門の発注がまだ無い店は、窓口が店の名前を返せない（店番号のまま）＝店の一覧の名前を使う（v2.13・空のカードと上の帯）
+        currentStoreName = res.storeName && String(res.storeName) !== String(currentStoreCode) ? res.storeName : (allStores[currentStoreCode] || res.storeName || currentStoreName);
         document.getElementById("currentStoreDisplay").textContent = "店舗: " + currentStoreName;
+        gridStoreCode_ = currentStoreCode;
 
         buildMonthFilter();
         buildSupplierFilter();
@@ -1654,10 +1881,14 @@
         updateAlertsBadge();
         buildGrid();
       } catch (err) {
-        hideLoading();
-        toastError_("データの読み込みに失敗しました: ", err);
+        failLoading_(err, {
+          title: '発注データを読めませんでした', prefix: "データの読み込みに失敗しました: ", retry: loadDashboardData,
+          // 閉じた: 表がまだ前の店（または空）のまま。上の帯の店とちがう表を、黙って見せない
+          close: function () { if (gridStoreCode_ !== currentStoreCode) showGridEmpty_('notLoaded'); }
+        });
       }
     }
+    var gridStoreCode_ = '';   // いま表に出ている発注データの店（読み込めなかったときに、上の帯の店とちがう表を見せないため）
 
     /**
      * 対象月フィルタの構築
@@ -2030,12 +2261,15 @@
     function renderTable() {
       var table = document.getElementById("gridTable");
       table.innerHTML = "";
-      
+
       if (dateHeaders.length === 0 || productHeaders.length === 0) {
-        table.innerHTML = '<tr><td style="padding: 40px; text-align: center; color: var(--text-muted); font-weight: bold; border: var(--card-border-thick);">選択された月に該当する発注データはありません。</td></tr>';
+        // 空（v2.13）: 表の中の1行でなく、表の代わりにカード。絞り込みで0件なら「絞り込みを外す」、そもそも無ければ「読み込み直す」
+        var sup = document.getElementById("supplierFilter").value, q = document.getElementById("searchFilter").value.trim();
+        showGridEmpty_(rawOrders.length && (sup || q) ? 'filtered' : 'none');
         return;
       }
-      
+      hideGridEmpty_();
+
       var headerTr = document.createElement("tr");
       
       var cornerTh = document.createElement("th");
@@ -2261,8 +2495,8 @@
         showToast(res.isPinned ? "優先表示にピン留めしました" : "ピン留めを解除しました", "success");
         loadDashboardData();
       } catch (err) {
-        hideLoading();
-        toastError_("優先順位変更に失敗しました: ", err);
+        // ピン留めは「押すたびに付ける・外す」＝届いたか分からないまま送り直すと、元に戻ってしまう。やり直しの代わりに表を読み直す（いまの順が分かる）
+        failLoading_(err, { title: '優先順位を変えられたか分かりません', textAfter: '表を読み直すと、いまの順が分かります。', retryLabel: '表を読み直す', prefix: "優先順位変更に失敗しました: ", retry: loadDashboardData });
       }
     }
 
@@ -2322,8 +2556,8 @@
         }
         renderTable();
       } catch (err) {
-        hideLoading();
-        toastError_("メモの保存に失敗しました: ", err);
+        // メモは同じ字で送り直しても1件のまま（店・日・商品で決まる）。窓は開いたまま＝書いた字は消えない
+        failLoading_(err, { title: 'メモを保存できませんでした', textAfter: '書いたメモは、窓に残っています。', retryLabel: 'もう一度保存する', prefix: "メモの保存に失敗しました: ", retry: saveMemo });
       }
     }
 
@@ -2566,10 +2800,14 @@
     }
 
     // 実際の同期処理。confirmOverwrite=false で呼ぶと、同月が既に取込済みなら確認を挟む。
+    // 取り込み（同期）は、窓口が受け取ったら最後まで走る（画面が待つのをやめても止まらない）。
+    //   なので 30 秒で打ち切らない: 8 秒で「時間がかかっています」・30 秒で「まだ取り込んでいます」・窓口の時間の上限（6 分）を過ぎても返事が無いときだけ止める
+    var IMPORT_GIVEUP_MS = 390000, IMPORT_STILL_MS = 30000;
     async function doImport(fileId, dept, confirmOverwrite) {
-      showLoading("発注書を解析・同期中... (数秒かかります)");
+      showLoading("発注書を解析・同期中…", { slowText: '時間がかかっています（大きな発注書は 1 分ほどかかります）…', maxMs: IMPORT_GIVEUP_MS + 10000,
+        later: [IMPORT_STILL_MS, 'まだ取り込んでいます。終わるまで、この画面のままお待ちください…'] });
       try {
-        var res = await callGAS('parseSpreadsheetById', { fileId: fileId, department: dept, confirmOverwrite: confirmOverwrite });
+        var res = await callGAS('parseSpreadsheetById', { fileId: fileId, department: dept, confirmOverwrite: confirmOverwrite }, { timeoutMs: IMPORT_GIVEUP_MS });
         hideLoading();
 
         // 同じ月が既に取込済み → 上書き確認
@@ -2629,8 +2867,14 @@
           showPanel("loginPanel");
         }
       } catch (err) {
-        hideLoading();
-        toastError_("同期に失敗しました: ", err);
+        if (err && err.retryable && err.kind === 'busy') {
+          // 窓口がほかの取り込み・初期化の最中（ロック）＝この取り込みは始まっていない。少し待って同じ取り込みをやり直せる
+          failLoading_(err, { title: 'ほかの取り込みが終わるのを待っています', prefix: "同期に失敗しました: ", retry: function () { doImport(fileId, dept, confirmOverwrite); } });
+          return;
+        }
+        // 通信が切れた・返事が無い: 窓口では取り込みが進んでいたかもしれない（送り直すと2回取り込む）。やり直しの代わりに、表を読み直して確かめる
+        failLoading_(err, { title: '取り込みの返事を受け取れませんでした', textAfter: '窓口では取り込みが進んだかもしれません。表を読み直して確かめてください（同じ月を取り込み直すと、上書きの確認が出ます）。',
+          retryLabel: '表を読み直す', prefix: "同期に失敗しました: ", retry: function () { if (currentStoreCode) { showDashboard(); loadDashboardData(); } else showPanel("loginPanel"); } });
       }
     }
 
@@ -2653,8 +2897,7 @@
         out.style.display = "block";
         out.textContent = JSON.stringify(res, null, 2);
       } catch (err) {
-        hideLoading();
-        toastError_("構造診断に失敗しました: ", err);
+        failLoading_(err, { title: '見出し構造を読めませんでした', prefix: "構造診断に失敗しました: ", retry: runInspectStructure });
       }
     }
 
@@ -2675,31 +2918,259 @@
         buildGrid();
         showDashboard();
       } catch (err) {
-        hideLoading();
-        toastError_("初期化に失敗しました: ", err);
+        // 全消しは何回送っても同じ（空にするだけ）。「もう一度」でも、前と同じ確認の窓を出してから送る
+        failLoading_(err, { title: '初期化できたか分かりません', prefix: "初期化に失敗しました: ", retry: runClearDatabase });
       }
     }
 
     /* --- ヘルパー関数 --- */
     
-    function showLoading(text) {
-      document.getElementById("loadingOverlay").style.display = "flex";
-      document.getElementById("loadingText").textContent = text || "読み込み中...";
-      // 【無限スピナーの根絶】サーバーが応答を返さない場合でも、必ず一定時間で強制解除する保険。
-      // 30秒経っても success/failure ハンドラ(いずれも hideLoading を呼ぶ)が発火しなければ、
-      // スピナーを閉じ、原因確認へ誘導する。これで「永遠に回り続ける」状態は構造的に起こらない。
-      if (loadingWatchdog) { clearTimeout(loadingWatchdog); }
-      loadingWatchdog = setTimeout(function() {
-        document.getElementById("loadingOverlay").style.display = "none";
+    // ===== 長い待ちの幕・やり直せば直る失敗・空（v2.13・ハチ＝共通の部品 mitsubachi.js の写し） =====
+    //   決まり（提案書 V1・PO 2026-11-24〜26）: 字（何をしているか・次にすること）が先、ハチは横に添える／0.3 秒までの待ちには何も作らない／
+    //   8 秒で「時間がかかっています」／30 秒で待つのをやめて、理由と「もう一度」（callGAS が打ち切る）。
+    //   出さない所: 押した釦の中・表の中・人が直す失敗（権限・入力・札の期限＝前と同じお知らせ）・印刷。
+    //   部品は defer で読むので、使うときに window.Mitsubachi を見る（読めない端末は、前と同じ回る印と字）。
+    //   opt.style（B／C）は、ハチの見本（bee-demo.js）だけが使う＝この1枚だけ絵の案を決める（この PC の選びは変えない）。
+    var BEE_HINT_MS = 300, BEE_SLOW_MS = 8000;
+    var BEE_SLOW_TEXT = '時間がかかっています（通信を確かめています）…';
+    var NET_MSG = {
+      timeout: '30 秒たっても返事がありませんでした。通信を確かめて、もう一度お試しください。',
+      offline: '通信できませんでした。電波やネットワークを確かめて、もう一度お試しください。',
+      busy: '窓口が混み合っています。少し待ってから、もう一度お試しください。',
+      unreadable: '窓口の返事を読めませんでした。少し待ってから、もう一度お試しください。'
+    };
+    var load_ = { h: null, plain: null, timers: [] };
+    function mb_() { return window.Mitsubachi || null; }
+    function el_(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined && text !== null) e.textContent = String(text); return e; }
+    function clearLoadingCard_() {
+      if (load_.h) { load_.h.end(); load_.h = null; }
+      load_.plain = null;
+      load_.timers.forEach(clearTimeout); load_.timers = [];
+      if (loadingWatchdog) { clearTimeout(loadingWatchdog); loadingWatchdog = null; }
+      document.getElementById("loadingCard").textContent = "";
+    }
+    /**
+     * 待ちの幕を出す。opts: { slowMs, slowText, later: [ms, 字]（その時刻に字を替える＝取り込み）, maxMs（幕の保険・既定 40 秒）, style }
+     *   続けて呼ぶと（幕が出たまま）字だけ替えて 8 秒を数え直す
+     */
+    function showLoading(text, opts) {
+      var n = document.getElementById("loadingOverlay"), card = document.getElementById("loadingCard");
+      opts = opts || {};
+      text = text || "読み込んでいます…";
+      if (n.classList.contains('is-error')) { clearLoadingCard_(); n.classList.remove('is-error', 'is-shown', 'is-plain'); }
+      n.style.display = "flex";
+      // 【無限の待ちの根絶】通信は callGAS が 30 秒で打ち切る。それでも幕が残ったとき（呼び出し側の閉じ忘れ）の保険
+      if (loadingWatchdog) clearTimeout(loadingWatchdog);
+      loadingWatchdog = setTimeout(function () {
         loadingWatchdog = null;
-        showToast("サーバーが30秒間応答しませんでした。GASエディタの[実行数]でエラーの有無をご確認ください（権限承認待ち・別バージョン稼働などが疑われます）。", "error");
-      }, 30000);
+        hideLoading();
+        showToast("画面が止まったように見えたので、待つのをやめました。もう一度操作してください。", "warning");
+      }, opts.maxMs || GIVEUP_MS + 10000);
+      if (opts.later) load_.timers.push(setTimeout(function () { if (load_.h) load_.h.stage(opts.later[1]); else if (load_.plain) load_.plain.textContent = opts.later[1]; }, opts.later[0]));
+      if (load_.h) { load_.h.stage(text); return; }
+      if (load_.plain) { load_.plain.textContent = text; return; }
+      var MB = mb_();
+      if (MB) {
+        load_.h = MB.wait(card, { text: text, delay: BEE_HINT_MS, slowMs: opts.slowMs > 0 ? opts.slowMs : BEE_SLOW_MS, slowText: opts.slowText || BEE_SLOW_TEXT, style: opts.style,
+          onShown: function () { n.classList.add('is-shown'); } });
+        return;
+      }
+      // 部品が読めない端末: 前と同じ回る印と字（0.3 秒たってから）
+      var sp = el_('div', 'spinner'); sp.setAttribute('aria-hidden', 'true');
+      load_.plain = el_('div', 'loading-text', text);
+      card.appendChild(sp); card.appendChild(load_.plain); card.setAttribute('role', 'status');
+      n.classList.add('is-plain');
+      load_.timers.push(setTimeout(function () { n.classList.add('is-shown'); }, BEE_HINT_MS));
+      load_.timers.push(setTimeout(function () { if (load_.plain) load_.plain.textContent = opts.slowText || BEE_SLOW_TEXT; }, opts.slowMs > 0 ? opts.slowMs : BEE_SLOW_MS));
     }
 
     function hideLoading() {
-      document.getElementById("loadingOverlay").style.display = "none";
-      if (loadingWatchdog) { clearTimeout(loadingWatchdog); loadingWatchdog = null; }
+      clearLoadingCard_();
+      var n = document.getElementById("loadingOverlay");
+      n.style.display = "none";
+      n.classList.remove('is-shown', 'is-error', 'is-plain');
     }
+
+    /**
+     * やり直せば直る失敗（通信・30 秒・混雑）を、待ちの幕の同じ所に出す: ハチの困り顔・理由・「もう一度」・「閉じる」。
+     *   o: { title, text, retryLabel, retry, closeLabel, close, style }。押すと幕を消してから retry／close（押した釦はすぐ薄くなる＝二度押しで2回送らない）
+     */
+    function showRetry(o) {
+      var n = document.getElementById("loadingOverlay"), card = document.getElementById("loadingCard");
+      clearLoadingCard_();
+      n.style.display = "flex";
+      n.classList.remove('is-plain'); n.classList.add('is-shown', 'is-error');
+      var run = function (fn) { return function () { hideLoading(); if (fn) fn(); }; };
+      var MB = mb_();
+      if (MB) {
+        MB.error(card, { title: o.title, text: o.text, retryLabel: o.retryLabel || 'もう一度', onRetry: run(o.retry), closeLabel: o.closeLabel || '閉じる', onClose: run(o.close), size: 's64', style: o.style });
+      } else {
+        var box = el_('div', 'loading-plain-err'); box.setAttribute('role', 'alert');
+        box.appendChild(el_('strong', '', o.title)); box.appendChild(el_('p', '', o.text));
+        var acts = el_('div');
+        var a = el_('button', 'btn btn-primary', o.retryLabel || 'もう一度'); a.type = 'button';
+        var b = el_('button', 'btn btn-secondary', o.closeLabel || '閉じる'); b.type = 'button'; b.style.marginLeft = '8px';
+        var once = function (fn) { return function () { a.disabled = b.disabled = true; fn(); }; };
+        a.addEventListener('click', once(run(o.retry))); b.addEventListener('click', once(run(o.close)));
+        acts.appendChild(a); acts.appendChild(b); box.appendChild(acts); card.appendChild(box);
+      }
+      var first = card.querySelector('button'); if (first) first.focus();
+    }
+    // Esc＝「閉じる」（やり直せば直る失敗のカードが出ているときだけ）
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var n = document.getElementById("loadingOverlay");
+      if (!n.classList.contains('is-error') || n.style.display === 'none') return;
+      var bs = document.getElementById("loadingCard").querySelectorAll('button');
+      if (bs.length > 1 && !bs[bs.length - 1].disabled) bs[bs.length - 1].click();
+    });
+
+    function isRetryable_(err) { return !!(err && err.retryable && !err.sessionExpired); }
+    function retryText_(err, after) {
+      var t = (err && err.kind && NET_MSG[err.kind] && err.kind !== 'busy') ? NET_MSG[err.kind] : String((err && err.message) || NET_MSG.offline);
+      return after ? t + ' ' + after : t;
+    }
+    /**
+     * 待ちの幕を使う操作の失敗の受け口: やり直せば直る失敗＝同じ幕にハチと「もう一度」／人が直す失敗＝幕を消して前と同じお知らせ／札の期限＝ログインの画面が知らせる（重ねない）
+     *   o: { title, textAfter（理由の後ろに足す1文）, retryLabel, retry, closeLabel, close, prefix（お知らせの頭） }
+     */
+    function failLoading_(err, o) {
+      if (isRetryable_(err)) {
+        showRetry({ title: o.title, text: retryText_(err, o.textAfter), retryLabel: o.retryLabel, retry: o.retry, closeLabel: o.closeLabel, close: o.close });
+        return;
+      }
+      hideLoading();
+      toastError_(o.prefix, err);
+    }
+
+    /**
+     * 空のカードの中身（本物の空と、ハチの見本で同じ物を使う）。kind: none＝発注データがまだ無い／filtered＝絞り込みに当たらない／notLoaded＝この店をまだ読めていない
+     *   demo（ハチの見本だけ）: { style: 絵の案, onAction: 釦を押したとき（本物の操作の代わり）, sample: { sup, q, store, dept }（字に出す見本の値・いまの絞り込みは読まない） }
+     */
+    function fillGridEmpty_(box, kind, demo) {
+      box.textContent = '';
+      var s = demo && demo.sample;
+      var sup = s ? (s.sup || '') : document.getElementById("supplierFilter").value, q = s ? (s.q || '') : document.getElementById("searchFilter").value.trim();
+      var store = s ? (s.store || '') : (currentStoreName || '');
+      var style = demo ? demo.style : undefined;
+      var o;
+      if (kind === 'filtered') {
+        var by = [];
+        if (sup) by.push('取引先「' + sup + '」');
+        if (q) by.push('商品検索「' + q + '」');
+        o = { title: '絞り込みに当たる商品はありません', text: (by.length ? by.join('・') + ' で絞っています。' : '') + '外すと、この月の発注が全部出ます。', actionLabel: '絞り込みを外す',
+          onAction: function () { document.getElementById("supplierFilter").value = ''; document.getElementById("searchFilter").value = ''; applyFilters(); } };
+      } else if (kind === 'notLoaded') {
+        o = { title: (store ? store + ' の' : 'この店の') + '発注データを、まだ読めていません', text: '通信が戻ったら、読み込んでください。', actionLabel: '読み込む', onAction: function () { loadDashboardData(); } };
+      } else {
+        var dept = s ? (s.dept || '') : (document.getElementById("deptSelect").value || '');
+        o = { title: (store ? store + ' の' : 'この店の') + (dept ? dept + '部門の' : '') + '発注データは、まだありません', text: '本部が発注書を取り込むと、ここに出ます。取り込んだあとは「読み込み直す」を押してください。', actionLabel: '読み込み直す', onAction: function () { loadDashboardData(); } };
+      }
+      if (demo && demo.onAction) o.onAction = demo.onAction;   // 見本: 本物の操作（読み込み・絞り込みを外す）をしない
+      var MB = mb_();
+      if (MB) { MB.empty(box, { title: o.title, text: o.text, actionLabel: o.actionLabel, onAction: o.onAction, size: 's48', style: style }); return; }
+      var p = el_('div', 'grid-empty-plain');
+      p.appendChild(el_('strong', '', o.title)); p.appendChild(el_('p', '', o.text));
+      var b = el_('button', 'btn btn-primary', o.actionLabel); b.type = 'button'; b.addEventListener('click', function () { b.disabled = true; o.onAction(); });
+      p.appendChild(b); box.appendChild(p);
+    }
+    function showGridEmpty_(kind) {
+      var box = document.getElementById("gridEmpty"), table = document.getElementById("gridTable");
+      table.innerHTML = ''; table.hidden = true;
+      fillGridEmpty_(box, kind);
+      box.hidden = false;
+    }
+    function hideGridEmpty_() {
+      var box = document.getElementById("gridEmpty");
+      if (!box.hidden) { box.hidden = true; box.textContent = ''; }
+      document.getElementById("gridTable").hidden = false;
+    }
+
+    // ===== ひとつ前に戻る・TOP（v2.13・上の帯と一緒にいつも同じ所） =====
+    //   ひとつ前＝画面の並び（ログイン → 店の選択 → 発注の表 → 管理者同期）の1つ手前。店の選択とログインの画面では押せない（薄く残す）
+    function navBack_() {
+      var p = (document.querySelector('.panel.active') || {}).id || '';
+      if (p === 'adminPanel') showDashboard();
+      else if (p === 'dashboardPanel') logout();
+    }
+    function navTop_() {
+      window.scrollTo(0, 0);
+      var g = document.querySelector('#dashboardPanel.active .grid-container'); if (g) g.scrollTop = 0;
+      var io = document.getElementById('inspectOutput'); if (io && io.offsetParent) io.scrollTop = 0;
+    }
+    function updateNav_(panelId) {
+      var b = document.getElementById('navBack');
+      if (!b) return;
+      var to = panelId === 'adminPanel' ? (currentStoreCode ? '発注の表へ戻る' : '店舗の選択へ戻る') : panelId === 'dashboardPanel' ? '店舗の選択へ戻る' : '';
+      b.disabled = !to;
+      b.title = to || 'この画面より前はありません';
+    }
+
+    // ===== 右上のアカウントのメニュー（▾）: 待つ間のハチの絵（もふ／むぎわら）と、ハチの見本の入口（bee-demo.js が足す） =====
+    function toggleAcctMenu_(force) {
+      var m = document.getElementById('acctMenu'), b = document.getElementById('acctBtn');
+      if (!m || !b) return;
+      var open = force === undefined ? m.hidden : !!force;
+      m.hidden = !open; b.setAttribute('aria-expanded', String(open));
+      if (open) {
+        var pick = document.getElementById('beePick');
+        if (pick && !pick.__built && mb_()) {
+          pick.__built = true;
+          pick.appendChild(el_('p', 'bee-pick-title', '待つ間・つながらないときのハチの絵'));
+          mb_().picker(pick, { label: 'ハチの絵を選ぶ' });
+          if (window.TENCHA_BEE_DEMO_ENTRY) window.TENCHA_BEE_DEMO_ENTRY(pick);
+        }
+        // 狭い幅で上の帯が折り返すと、右にそろえたメニューが画面の外へ出る＝開いたときに、画面の中に収める
+        m.style.right = '0px';
+        var r = m.getBoundingClientRect();
+        if (r.left < 8) m.style.right = (r.left - 8) + 'px';
+      }
+    }
+    function closeAcctMenu_() { var m = document.getElementById('acctMenu'); if (m && !m.hidden) toggleAcctMenu_(false); }
+    document.addEventListener('click', function (e) {
+      var w = document.getElementById('acctWrap');
+      if (w && !w.contains(e.target)) closeAcctMenu_();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeAcctMenu_(); });
+
+    // ===== 新しい版の自動の読み直し（v2.13・ver.js と比べる・ナレッジ principles_web_frontend_cache_busting「3回目で仕組みにした」） =====
+    //   GitHub Pages は index.html を端末に最大 10 分覚えさせる＝公開しても前の画面が出ることがある。ver.js（版の字だけ）を毎回ちがうアドレスで読み、
+    //   動いている版（CONFIG.APP_VERSION）と比べる。開いた直後でまだ何も押していない → その場で1回だけ読み直す／使っている途中 → 上に知らせだけ（見ている所を消さない）。
+    //   読み直してもまだ前の版（公開が行き渡る前）なら、知らせだけ（くり返さない＝sessionStorage に覚える。覚えられない端末も知らせだけ）。
+    var VER_RELOAD_KEY = 'tenchaku_ver_reloaded';
+    var verTouched_ = false, verOpenedAt_ = Date.now();
+    ['pointerdown', 'keydown'].forEach(function (ev) { window.addEventListener(ev, function () { verTouched_ = true; }, { capture: true, passive: true }); });
+    var verWhy_ = 'open';
+    window.__tenchaVer = function (v) {
+      v = String(v || '');
+      if (!/^[0-9]+(\.[0-9]+){1,3}$/.test(v)) return;          // 版の字の形だけ受ける
+      if (v === CONFIG.APP_VERSION) { try { sessionStorage.removeItem(VER_RELOAD_KEY); } catch (_) { } return; }
+      var tried = '';
+      try { tried = sessionStorage.getItem(VER_RELOAD_KEY) || ''; } catch (_) { tried = v; }   // 覚えられない端末は、読み直さず知らせだけ
+      var fresh = verWhy_ === 'open' && !verTouched_ && Date.now() - verOpenedAt_ < 20000 && !document.querySelector('#loadingOverlay.is-error');
+      if (fresh && tried !== v) {
+        try { sessionStorage.setItem(VER_RELOAD_KEY, v); } catch (_) { }
+        location.reload();
+        return;
+      }
+      var note = document.getElementById('verNote'), t = document.getElementById('verNoteText');
+      if (!note || !t) return;
+      t.textContent = '新しい版があります（いま v' + CONFIG.APP_VERSION + ' → 新 v' + v + '）。読み直すと新しい画面になります。';
+      note.hidden = false;
+    };
+    function verCheck_(why) {
+      verWhy_ = why || 'later';
+      var s = document.createElement('script');
+      s.src = 'ver.js?t=' + Date.now();                         // 毎回ちがうアドレス＝端末の覚えを通らない（同じ所の台本＝外から読む物は足さない）
+      s.async = true;
+      s.onload = s.onerror = function () { s.remove(); };      // 無い（前の公開）・読めない＝何もしない
+      document.head.appendChild(s);
+    }
+    document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') verCheck_('later'); });
+    setInterval(function () { if (document.visibilityState === 'visible') verCheck_('later'); }, 20 * 60 * 1000);
+
+    // ハチの見本（bee-demo.js）が呼ぶ本物の関数（幕・カード・空。データ・札・窓口には触らない）
+    window.TENCHA_BEE = { showLoading: showLoading, hideLoading: hideLoading, showRetry: showRetry, fillGridEmpty: fillGridEmpty_, NET_MSG: NET_MSG, closeAcctMenu: closeAcctMenu_ };
 
     function showToast(message, type) {
       var toast = document.getElementById("toast");

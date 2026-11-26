@@ -1,4 +1,4 @@
-/* テンチャク【惣菜】利用ガイド（v2.12）。全システム共通の型: 左に目次（上に「ひとつ前に戻る」「TOPに戻る」）・右に本文・双方向に連動。
+/* テンチャク【惣菜】利用ガイド（v2.12・v2.13 で戻る・TOP を上の帯へ・待つ間のハチ）。全システム共通の型: 左に目次・右に本文・双方向に連動。上の帯に「ひとつ前に戻る」「TOPに戻る」。
    節ごとに、まず図（作り物のデータの写真に番号の丸／流れの箱）。文は図の補い。色はアプリの画面と同じ（紺・青のマス・橙の印） */
 :root { --brand: #1e3a8a; --brand-soft: #dbeafe; --ink: #0f172a; --ink2: #475569; --line: #e2e8f0; --line2: #cbd5e1; --bg: #f1f5f9; --mark: #c2410c; --land: #e0f2fe; }
 * { box-sizing: border-box; }
@@ -13,20 +13,26 @@ body.guide-page { display: flex; flex-direction: column; height: 100vh; overflow
 .gspacer { flex: 1; }
 .gbtn { display: inline-flex; align-items: center; padding: 6px 12px; border: 2px solid var(--ink); border-radius: 6px; background: #fff; color: var(--ink); font-weight: 700; font-size: 14px; text-decoration: none; white-space: nowrap; }
 .gbtn:hover { background: var(--bg); }
+/* ひとつ前に戻る・TOP（v2.13）: 上の帯の中・名前のすぐ右（目次・本文を送っても動かない） */
+.gnav { display: flex; gap: 6px; align-items: center; }
+.gnav button { padding: 5px 10px; border: 1.5px solid var(--line2); border-radius: 6px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.gnav button:hover:not(:disabled) { background: var(--bg); }
+.gnav button:disabled { color: #94a3b8; cursor: default; }
 
 .guide-scroll { flex: 1; min-height: 0; overflow: auto; background: #fff; }
 .guide-status { padding: 16px; margin: 0; }
 .guide-status a { color: var(--brand); font-weight: 700; }
-/* 窓口の返事を待つ間の回る印（固まって見せない） */
+/* 窓口の返事を待つ間（v2.13）: 本文の場所の真ん中にハチのカード（.wait-place＝番号表 0.2.8 と同じ型）。部品が読めない端末は回る印と字 */
+.guide-status.is-wait { padding: 0; height: 100%; display: flex; }
+.wait-place { flex: 1; min-height: 100%; display: flex; align-items: center; justify-content: center; padding: 16px;
+  --mb-surface: #fff; --mb-ink: var(--ink); --mb-muted: var(--ink2); --mb-line: var(--line2); --mb-btn-bg: #2563eb; --mb-btn-ink: #fff; --mb-btn-edge: var(--ink); }
+.wait-place .mb-wait, .wait-place .mb-err { background: #fff; border: 1px solid var(--line2); border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, .08); max-width: min(560px, 100%); }
 .guide-status.is-loading::before { content: ''; display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border: 2px solid var(--line2); border-top-color: var(--brand); border-radius: 50%; animation: gspin .8s linear infinite; }
 @keyframes gspin { to { transform: rotate(360deg); } }
-.guide-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 28px; max-width: 1400px; margin: 0 auto; padding: 14px 16px 0; }
+.guide-layout { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 28px; margin: 0; padding: 14px 16px 0; } /* v2.13: 1920 でも横幅を使い切る（前は最大 1400px で右が 276px 空いた）。文の行だけは長くしない（下の .gnotes） */
 .guide-content { padding-bottom: 80px; } /* 下の余白は本文の側に（.guide-layout に置くと、いちばん下で左の列が押し上げられて「戻る」が隠れる） */
 .guide-side { position: sticky; top: 8px; align-self: start; max-height: calc(100vh - 80px); display: flex; flex-direction: column; gap: 8px; }
-.gnav { display: flex; flex-direction: column; gap: 4px; }
-.gnav button { text-align: left; padding: 6px 10px; border: 1.5px solid var(--line2); border-radius: 6px; background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
-.gnav button:hover:not(:disabled) { background: var(--bg); }
-.gnav button:disabled { color: #94a3b8; cursor: default; }
+
 .guide-toc { display: flex; flex-direction: column; gap: 2px; overflow: auto; min-height: 0; }
 .guide-toc a { display: flex; gap: 6px; padding: 4px 10px; line-height: 1.4; border-radius: 6px; color: var(--ink); text-decoration: none; border-left: 4px solid transparent; font-size: 15px; }
 .guide-toc a .tn { color: var(--ink2); font-variant-numeric: tabular-nums; min-width: 1.6em; }
@@ -65,7 +71,7 @@ body.guide-page { display: flex; flex-direction: column; height: 100vh; overflow
 .gsteps li .gnum { position: absolute; left: 6px; top: 5px; }
 .gsteps li strong { color: var(--ink); font-size: 16px; margin-right: 6px; }
 .gsteps li.is-hot { background: #fff1e6; }
-.gnotes { margin: 12px 0 0; padding-left: 1.3em; }
+.gnotes { margin: 12px 0 0; padding-left: 1.3em; max-width: 60em; }
 .gnotes li { margin-bottom: 4px; font-size: 16px; }
 
 /* 流れの箱 */
@@ -102,6 +108,21 @@ body.guide-page { display: flex; flex-direction: column; height: 100vh; overflow
 .gtable tbody tr.is-go { cursor: pointer; }
 .gtable tbody tr.is-go:hover th, .gtable tbody tr.is-go:hover td { background: #f8fafc; }
 
+/* 節「待つ間のハチの絵」（v2.13）: 出る3つの場面（止まった絵に番号の丸）・選ぶ所・見本の入口 */
+.gbee-scenes { list-style: none; margin: 0; padding: 4px 0 0 10px; display: flex; flex-wrap: wrap; gap: 14px 22px; }
+.gbee-scene { position: relative; flex: 1 1 200px; max-width: 300px; display: grid; grid-template-columns: 56px minmax(0, 1fr); column-gap: 10px; align-items: center; padding: 12px; border: 1px solid #e8d49a; border-radius: 10px; background: #fffdf5; }
+.gbee-scene > .gnum { position: absolute; top: -10px; left: -10px; }
+.gbee-scene > .mb-bee { grid-row: 1 / span 2; }
+.gbee-scene strong { font-size: 16px; }
+.gbee-t { font-size: 15px; color: var(--ink2); line-height: 1.45; }
+.gbee-pick { margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--line2); border-radius: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; --mb-ink: var(--ink); --mb-line: var(--line2); --mb-btn-edge: var(--brand); }
+.gbee-pick-title { margin: 0; font-weight: 700; width: 100%; }
+.gbee-pick .mb-pick-note { width: 100%; }
+.gbee-demo { display: inline-flex; align-items: center; min-height: 40px; padding: 4px 14px; border: 2px solid var(--brand); border-radius: 8px; color: var(--brand); font-weight: 700; text-decoration: none; background: #fff; }
+.gbee-demo:hover { background: var(--brand-soft); }
+.gbee-demo-t { font-size: 14px; color: var(--ink2); }
+/* 生成AIを使ったことの明示（社内の生成AI利用ガイドライン 6.(4)・いちばん最後に小さく） */
+.gcredit { margin: 28px 0 0; text-align: right; font-size: 12px; color: #64748b; }
 /* 移った先の知らせ（1.4 秒で消える）。着いた見出しに重ならないよう、下に出す */
 .gtoast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); z-index: 50; background: var(--ink); color: #fff; padding: 6px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); pointer-events: none; }
 
@@ -115,17 +136,16 @@ body.guide-page { display: flex; flex-direction: column; height: 100vh; overflow
   .gwho { font-size: 13px; padding: 0 8px; }
   .gbtn { min-height: 40px; font-size: 14px; padding: 4px 10px; }
   .guide-layout { grid-template-columns: minmax(0, 1fr); gap: 8px; padding: 0 12px; }
-  .guide-content { padding-bottom: 96px; } /* 下の帯（戻る・TOP）の分 */
+  .gtop { flex-wrap: wrap; }
+  .gnav { order: 5; width: 100%; } /* 狭い幅: 戻る・TOP は上の帯の2行目（いつも見える・本文に重ねない） */
+  .gnav button { flex: 1; min-height: 44px; font-size: 15px; padding: 4px 9px; }
   .guide-side { position: sticky; top: 0; z-index: 5; max-height: none; background: #fff; margin: 0 -12px; padding: 8px 12px 6px; border-bottom: 1px solid var(--line); }
   /* 目次は1行の帯にして上に残す（最初の画面を本文に空ける・いまの所がいつも見える） */
   .guide-toc { flex-direction: row; flex-wrap: nowrap; gap: 4px; overflow-x: auto; scrollbar-width: thin; }
   .guide-toc a { flex: none; align-items: center; min-height: 40px; border: 1px solid var(--line2); border-radius: 999px; padding: 3px 12px; font-size: 15px; white-space: nowrap; }
   .guide-toc a.is-current { border-color: var(--brand); }
   .guide-toc .tgroup { display: none; }
-  /* 戻る・TOP は、画面の下の帯にいつも出す（隠さない・本文に重ねない） */
-  .gnav { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; flex-direction: row; gap: 8px; padding: 6px 12px calc(6px + env(safe-area-inset-bottom)); background: #fff; border-top: 1px solid var(--line2); box-shadow: 0 -2px 8px rgba(0, 0, 0, .08); }
-  .gnav button { flex: 1; min-height: 44px; text-align: center; font-size: 15px; padding: 6px 9px; }
-  .gtoast { bottom: 76px; }
+  .gbee-scene { max-width: none; }
   .gpair.is-side .gshot { max-width: 100%; }
   .gshot-scroll { padding: 10px; }
   .gflow-list { flex-direction: column; gap: 24px; padding-left: 10px; }
